@@ -4,7 +4,7 @@ import { defineConfig, envField } from "astro/config";
 import react from "@astrojs/react";
 import sitemap from "@astrojs/sitemap";
 import tailwindcss from "@tailwindcss/vite";
-import cloudflare from "@astrojs/cloudflare";
+import node from "@astrojs/node";
 
 // https://astro.build/config
 export default defineConfig({
@@ -13,11 +13,12 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
   },
-  adapter: cloudflare(),
+  adapter: node({ mode: "standalone" }),
   env: {
     schema: {
-      SUPABASE_URL: envField.string({ context: "server", access: "secret", optional: true }),
-      SUPABASE_KEY: envField.string({ context: "server", access: "secret", optional: true }),
+      DATABASE_PATH: envField.string({ context: "server", access: "secret", optional: true }),
+      ADMIN_USERNAME: envField.string({ context: "server", access: "secret", optional: true }),
+      ADMIN_PASSWORD: envField.string({ context: "server", access: "secret", optional: true }),
     },
   },
 });

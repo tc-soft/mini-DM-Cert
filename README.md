@@ -1,8 +1,8 @@
-# 10x Astro Starter
+# mini-DM
 
 ![](./public/template.png)
 
-A modern, opinionated starter template for building fast, accessible web applications.
+Internal purchase-planning web app. Solo developer, self-hosted on the company's internal network only — no public internet access.
 
 ## Tech Stack
 
@@ -10,8 +10,8 @@ A modern, opinionated starter template for building fast, accessible web applica
 - [React](https://react.dev/) v19 - UI library for interactive components
 - [TypeScript](https://www.typescriptlang.org/) v5 - Type-safe JavaScript
 - [Tailwind CSS](https://tailwindcss.com/) v4 - Utility-first CSS framework
-- [Supabase](https://supabase.com/) - Authentication and backend-as-a-service
-- [Cloudflare Workers](https://workers.cloudflare.com/) - Edge deployment runtime
+- [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) - Embedded SQLite database, single file, no external service
+- [@astrojs/node](https://docs.astro.build/en/guides/integrations-guide/node/) - Self-hosted Node runtime, no cloud deployment dependency
 
 ## Prerequisites
 
@@ -20,37 +20,27 @@ A modern, opinionated starter template for building fast, accessible web applica
 
 ## Getting Started
 
-1. Clone the repository:
-
-```bash
-git clone https://github.com/przeprogramowani/10x-astro-starter.git
-cd 10x-astro-starter
-```
-
-2. Install dependencies:
+1. Install dependencies:
 
 ```bash
 npm install
 ```
 
-3. Set up Supabase and configure environment variables — see [Supabase Configuration](#supabase-configuration) below.
+2. (Optional) Configure environment variables — see [Configuration](#configuration) below. Sane defaults apply if you skip this.
 
-4. Create a `.dev.vars` file for local Cloudflare dev secrets:
-
-```bash
-cp .env.example .dev.vars
-```
-
-5. Run the development server:
+3. Run the development server:
 
 ```bash
 npm run dev
 ```
 
+On first boot, if the `users` table is empty, a default admin account is seeded automatically. If you did not set `ADMIN_PASSWORD`, the generated password is printed once to the server console — copy it before it scrolls away.
+
 ## Available Scripts
 
-- `npm run dev` - Start development server (Cloudflare workerd runtime)
+- `npm run dev` - Start development server
 - `npm run build` - Build for production
+- `npm run start` - Run the production build (`node ./dist/server/entry.mjs`)
 - `npm run preview` - Preview production build
 - `npm run lint` - Run ESLint with type-checked rules
 - `npm run lint:fix` - Auto-fix ESLint issues
@@ -65,92 +55,42 @@ npm run dev
 │ ├── pages/ # Astro pages
 │ │ └── api/ # API endpoints
 │ ├── components/ # UI components (Astro & React)
+│ ├── lib/ # db.ts (SQLite), auth.ts (sessions)
 │ └── assets/ # Static assets
 ├── public/ # Public assets
-├── wrangler.jsonc # Cloudflare Workers config
+├── data/ # SQLite database file (gitignored, created on first run)
 ```
 
-## Supabase Configuration
+## Configuration
 
-This project uses [Supabase](https://supabase.com/) for authentication. Environment variables are declared via Astro's `astro:env` schema and are treated as **server-only secrets** — they are never exposed to the client.
+Environment variables are declared via Astro's `astro:env` schema and are treated as **server-only secrets** — they are never exposed to the client. All are optional.
 
-### First-time setup (local, no cloud project needed)
+| Variable         | Description                                                                    | Default                |
+| ----------------- | -------------------------------------------------------------------------------- | ----------------------- |
+| `DATABASE_PATH`  | Path to the SQLite database file                                               | `./data/mini-dm.db`    |
+| `ADMIN_USERNAME` | Username for the seeded default admin account                                  | `admin`                |
+| `ADMIN_PASSWORD` | Password for the seeded default admin account                                  | randomly generated     |
 
-Requires [Docker](https://www.docker.com/) and ~7 GB RAM.
-
-1. Create your `.env` file:
+Copy `.env.example` to `.env` to set these locally:
 
 ```bash
 cp .env.example .env
 ```
 
-2. Initialize the local Supabase project (creates a `supabase/` config folder):
-
-```bash
-npx supabase init
-```
-
-3. Start the local stack (downloads Docker images on first run):
-
-```bash
-npx supabase start
-```
-
-4. Copy the credentials printed by the CLI into your `.env` and `.dev.vars`:
-
-```
-SUPABASE_URL=http://127.0.0.1:54321
-SUPABASE_KEY=<anon key from CLI output>
-```
-
-5. To stop the stack when done:
-
-```bash
-npx supabase stop
-```
-
-The local Studio UI is available at `http://localhost:54323`.
-
-No database tables or migrations are required — this project uses Supabase Auth's built-in `auth.users` table only.
-
-### Using a cloud Supabase project instead
-
-If you prefer to use a hosted Supabase project, add these variables to your `.env` and `.dev.vars` files:
-
-| Variable       | Description                                                |
-| -------------- | ---------------------------------------------------------- |
-| `SUPABASE_URL` | Project URL from Supabase dashboard → Settings → API       |
-| `SUPABASE_KEY` | `anon` public key from Supabase dashboard → Settings → API |
-
-```
-SUPABASE_URL=https://<project-ref>.supabase.co
-SUPABASE_KEY=<anon-key>
-```
-
-### Email confirmation in local development
-
-By default Supabase requires email confirmation before a user can sign in. To skip this during local development:
-
-1. Open the Supabase dashboard for your project
-2. Go to **Authentication → Email → Confirm email**
-3. Toggle it **off**
-
-Users can then sign in immediately after sign-up without clicking a confirmation link.
-
 ### Auth routes
 
-| Route                 | Description                                                             |
-| --------------------- | ----------------------------------------------------------------------- |
-| `/auth/signin`        | Email/password sign-in form                                             |
-| `/auth/signup`        | Email/password sign-up form                                             |
-| `/auth/confirm-email` | Post-signup "check your inbox" page                                     |
-| `/dashboard`          | Example protected page (redirects to `/auth/signin` if unauthenticated) |
+| Route          | Description                                                             |
+| --------------- | ------------------------------------------------------------------------- |
+| `/auth/signin` | Username/password sign-in form                                          |
+| `/dashboard`   | Example protected page (redirects to `/auth/signin` if unauthenticated) |
+
+There is no public sign-up route. Accounts are local (username + salted password hash, stored in SQLite) and — per the product's access-control model — created by an Administrator, not self-registered. Account management UI is a planned feature, not yet built.
 
 Route protection is handled in `src/middleware.ts`. Add paths to the `PROTECTED_ROUTES` array there to require authentication.
 
 ## Deployment
 
-This project deploys to [Cloudflare Workers](https://workers.cloudflare.com/).
+This project is self-hosted on the internal network via Astro's Node adapter (`mode: "standalone"`), which produces a runnable Node server.
 
 1. Build the project:
 
@@ -158,17 +98,17 @@ This project deploys to [Cloudflare Workers](https://workers.cloudflare.com/).
 npm run build
 ```
 
-2. Deploy with Wrangler:
+2. Run it:
 
 ```bash
-npx wrangler deploy
+npm run start
 ```
 
-Set `SUPABASE_URL` and `SUPABASE_KEY` as secrets in your Cloudflare dashboard or via `npx wrangler secret put`.
+Set `DATABASE_PATH` to a persistent location outside the deployment directory so the database survives redeploys. Set `ADMIN_USERNAME` / `ADMIN_PASSWORD` if you want to pin the seeded admin credentials instead of relying on the random-password-on-first-boot behavior.
 
 ## CI
 
-GitHub Actions runs lint + build on every push and PR to `master`. Configure `SUPABASE_URL` and `SUPABASE_KEY` as repository secrets in GitHub for the build step.
+GitHub Actions runs lint + build on every push and PR to `master`. No secrets are required for the build step — SQLite needs no external service.
 
 ## License
 

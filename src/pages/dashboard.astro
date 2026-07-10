@@ -11,7 +11,7 @@ const { user } = Astro.locals;
         Dashboard
       </h1>
       <p class="text-blue-100/80">
-        Welcome, <span class="font-semibold text-white">{user?.email}</span>
+        Welcome, <span class="font-semibold text-white">{user?.username}</span>
       </p>
       <p class="mt-2 text-sm text-blue-100/50">This page is only for authenticated users.</p>
       <form method="POST" action="/api/auth/signout" class="mt-6">
