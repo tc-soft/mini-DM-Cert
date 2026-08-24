@@ -12,6 +12,11 @@ export default defineConfig({
   integrations: [react(), sitemap()],
   vite: {
     plugins: [tailwindcss()],
+    server: {
+      watch: {
+        usePolling: true,
+      },
+    },
   },
   adapter: node({ mode: "standalone" }),
   env: {
