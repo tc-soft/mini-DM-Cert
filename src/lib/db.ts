@@ -14,6 +14,51 @@ export interface UserRow {
   created_at: string;
 }
 
+export interface ProductRow {
+  id: number;
+  name: string;
+}
+
+export interface SupplierRow {
+  id: number;
+  name: string;
+}
+
+export interface CurrencyRow {
+  id: number;
+  code: string;
+}
+
+export interface PurchaseOrderRow {
+  id: number;
+  order_number: string | null;
+  product_name: string;
+  supplier_name: string;
+  quantity_kg: number;
+  port_price_per_kg: number;
+  delivered_price_per_kg: number | null;
+  order_value: number;
+  currency_code: string;
+  container_number: string | null;
+  eta_port_date: string | null;
+  eta_destination_date: string | null;
+  has_eur1_certificate: 0 | 1 | null;
+  batch_number: string | null;
+  sent_for_testing_date: string | null;
+  test_results: string | null;
+  is_blocked: 0 | 1 | null;
+  taken_for_production: 0 | 1 | null;
+  payment_due_date: string | null;
+  invoice_number: string | null;
+  payment_date: string | null;
+  delivery_date: string | null;
+  notes: string | null;
+  created_at: string;
+  created_by: string;
+  updated_at: string | null;
+  updated_by: string | null;
+}
+
 const dbPath = resolve(DATABASE_PATH || "./data/mini-dm.db");
 mkdirSync(dirname(dbPath), { recursive: true });
 
@@ -38,6 +83,141 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+
+  CREATE TABLE IF NOT EXISTS products (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL
+      CHECK (length(trim(name)) BETWEEN 1 AND 100),
+    UNIQUE (name)
+  );
+
+  CREATE TABLE IF NOT EXISTS suppliers (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL
+      CHECK (length(trim(name)) BETWEEN 1 AND 100),
+    UNIQUE (name)
+  );
+
+  CREATE TABLE IF NOT EXISTS currencies (
+    id INTEGER PRIMARY KEY,
+    code TEXT NOT NULL
+      CHECK (
+        length(code) = 3
+        AND code = upper(code)
+      ),
+    UNIQUE (code)
+  );
+
+  CREATE TABLE IF NOT EXISTS purchase_orders (
+    id INTEGER PRIMARY KEY,
+
+    order_number TEXT
+      CHECK (
+        order_number IS NULL
+        OR length(order_number) = 10
+      ),
+
+    product_name TEXT NOT NULL
+      CHECK (length(trim(product_name)) BETWEEN 1 AND 100),
+
+    supplier_name TEXT NOT NULL
+      CHECK (length(trim(supplier_name)) BETWEEN 1 AND 100),
+
+    quantity_kg INTEGER NOT NULL
+      CHECK (quantity_kg > 0),
+
+    port_price_per_kg INTEGER NOT NULL
+      CHECK (port_price_per_kg >= 0),
+
+    delivered_price_per_kg INTEGER
+      CHECK (
+        delivered_price_per_kg IS NULL
+        OR delivered_price_per_kg >= 0
+      ),
+
+    order_value INTEGER NOT NULL
+      CHECK (order_value >= 0),
+
+    currency_code TEXT NOT NULL
+      CHECK (
+        length(currency_code) = 3
+        AND currency_code = upper(currency_code)
+      ),
+
+    container_number TEXT
+      CHECK (
+        container_number IS NULL
+        OR length(container_number) <= 50
+      ),
+
+    eta_port_date TEXT,
+    eta_destination_date TEXT,
+
+    has_eur1_certificate INTEGER
+      CHECK (
+        has_eur1_certificate IS NULL
+        OR has_eur1_certificate IN (0, 1)
+      ),
+
+    batch_number TEXT
+      CHECK (
+        batch_number IS NULL
+        OR length(batch_number) = 13
+      ),
+
+    sent_for_testing_date TEXT,
+
+    test_results TEXT
+      CHECK (
+        test_results IS NULL
+        OR length(test_results) <= 50
+      ),
+
+    is_blocked INTEGER
+      CHECK (
+        is_blocked IS NULL
+        OR is_blocked IN (0, 1)
+      ),
+
+    taken_for_production INTEGER
+      CHECK (
+        taken_for_production IS NULL
+        OR taken_for_production IN (0, 1)
+      ),
+
+    payment_due_date TEXT,
+
+    invoice_number TEXT
+      CHECK (
+        invoice_number IS NULL
+        OR length(invoice_number) <= 30
+      ),
+
+    payment_date TEXT,
+    delivery_date TEXT,
+
+    notes TEXT
+      CHECK (
+        notes IS NULL
+        OR length(notes) <= 512
+      ),
+
+    created_at TEXT NOT NULL
+      DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+
+    created_by TEXT NOT NULL
+      CHECK (length(trim(created_by)) > 0),
+
+    updated_at TEXT,
+    updated_by TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_purchase_orders_order_number ON purchase_orders(order_number);
+  CREATE INDEX IF NOT EXISTS idx_purchase_orders_product_name ON purchase_orders(product_name);
+  CREATE INDEX IF NOT EXISTS idx_purchase_orders_supplier_name ON purchase_orders(supplier_name);
+  CREATE INDEX IF NOT EXISTS idx_purchase_orders_currency_code ON purchase_orders(currency_code);
+  CREATE INDEX IF NOT EXISTS idx_purchase_orders_batch_number ON purchase_orders(batch_number);
+  CREATE INDEX IF NOT EXISTS idx_purchase_orders_container_number ON purchase_orders(container_number);
 `);
 
 // scrypt with a random 16-byte salt, stored alongside the hash as "salt:hash" (both hex).
