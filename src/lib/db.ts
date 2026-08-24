@@ -258,3 +258,12 @@ function seedDefaultAdmin() {
 }
 
 seedDefaultAdmin();
+
+function seedDefaultCurrencies() {
+  const insert = db.prepare("INSERT OR IGNORE INTO currencies (code) VALUES (?)");
+  for (const code of ["EUR", "USD", "PLN"]) {
+    insert.run(code);
+  }
+}
+
+seedDefaultCurrencies();

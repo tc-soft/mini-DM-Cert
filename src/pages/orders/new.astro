@@ -1,0 +1,26 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import OrderForm from "@/components/orders/OrderForm";
+import { listProducts, listSuppliers, listCurrencies } from "@/lib/orders";
+
+const error = Astro.url.searchParams.get("error");
+const products = listProducts().map((p) => p.name);
+const suppliers = listSuppliers().map((s) => s.name);
+const currencies = listCurrencies().map((c) => c.code);
+---
+
+<Layout title="Nowe zamówienie">
+  <div class="bg-cosmic min-h-screen p-4 py-10">
+    <div
+      class="mx-auto w-full max-w-2xl rounded-2xl border border-white/10 bg-white/10 p-8 text-white backdrop-blur-xl"
+    >
+      <div class="mb-6 flex items-center justify-between">
+        <h1 class="bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-2xl font-bold text-transparent">
+          Nowe zamówienie
+        </h1>
+        <a href="/orders" class="text-sm text-blue-100/70 hover:text-white">&larr; Wróć do listy</a>
+      </div>
+      <OrderForm products={products} suppliers={suppliers} currencies={currencies} serverError={error} client:load />
+    </div>
+  </div>
+</Layout>

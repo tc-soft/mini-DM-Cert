@@ -1,0 +1,70 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { listOrders } from "@/lib/orders";
+import { formatMoney } from "@/lib/money";
+
+const orders = listOrders();
+---
+
+<Layout title="Zamówienia">
+  <div class="bg-cosmic min-h-screen p-4 py-10">
+    <div class="mx-auto w-full max-w-6xl">
+      <div class="mb-6 flex items-center justify-between">
+        <h1 class="bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-2xl font-bold text-transparent">
+          Zamówienia
+        </h1>
+        <a
+          href="/orders/new"
+          class="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-500"
+        >
+          + Nowe zamówienie
+        </a>
+      </div>
+
+      <div class="overflow-x-auto rounded-2xl border border-white/10 bg-white/10 backdrop-blur-xl">
+        <table class="w-full min-w-[900px] text-left text-sm text-white">
+          <thead class="border-b border-white/10 text-blue-100/70">
+            <tr>
+              <th class="px-4 py-3 font-medium">Nr zamówienia</th>
+              <th class="px-4 py-3 font-medium">Towar</th>
+              <th class="px-4 py-3 font-medium">Dostawca</th>
+              <th class="px-4 py-3 text-right font-medium">Ilość (kg)</th>
+              <th class="px-4 py-3 text-right font-medium">Wartość</th>
+              <th class="px-4 py-3 font-medium">Kontener</th>
+              <th class="px-4 py-3 font-medium">ETA port</th>
+              <th class="px-4 py-3 font-medium">ETA cel</th>
+              <th class="px-4 py-3 font-medium">Dodał</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              orders.length === 0 ? (
+                <tr>
+                  <td colspan="9" class="px-4 py-8 text-center text-blue-100/50">
+                    Brak zamówień. Dodaj pierwsze.
+                  </td>
+                </tr>
+              ) : (
+                orders.map((o) => (
+                  <tr class="border-b border-white/5 last:border-0 hover:bg-white/5">
+                    <td class="px-4 py-3">{o.order_number ?? "—"}</td>
+                    <td class="px-4 py-3">{o.product_name}</td>
+                    <td class="px-4 py-3">{o.supplier_name}</td>
+                    <td class="px-4 py-3 text-right">{o.quantity_kg.toLocaleString("pl-PL")}</td>
+                    <td class="px-4 py-3 text-right">
+                      {formatMoney(o.order_value)} {o.currency_code}
+                    </td>
+                    <td class="px-4 py-3">{o.container_number ?? "—"}</td>
+                    <td class="px-4 py-3">{o.eta_port_date ?? "—"}</td>
+                    <td class="px-4 py-3">{o.eta_destination_date ?? "—"}</td>
+                    <td class="px-4 py-3 text-blue-100/70">{o.created_by}</td>
+                  </tr>
+                ))
+              )
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</Layout>
