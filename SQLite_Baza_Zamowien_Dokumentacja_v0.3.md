@@ -3,8 +3,8 @@
 **Projekt:** baza zamówień  
 **Silnik bazy danych:** SQLite  
 **Środowisko aplikacji:** Node.js  
-**Wersja dokumentu:** 0.3  
-**Data:** 2026-08-24
+**Wersja dokumentu:** 0.4  
+**Data:** 2026-08-25
 
 ---
 
@@ -46,7 +46,8 @@ Dzięki temu późniejsza zmiana nazwy towaru, dostawcy lub danych słownikowych
 | 5 | `quantity_kg` | INTEGER | Tak | Ilość w kilogramach. Tylko liczby całkowite, wartość większa od 0. |
 | 6 | `port_price_per_kg` | INTEGER | Tak | Cena portowa za 1 kg. W bazie jako wartość × 10000. |
 | 7 | `delivered_price_per_kg` | INTEGER | Nie | Cena za 1 kg po uwzględnieniu dostawy. Uzupełniana później; początkowo `NULL`. Wartość × 10000. |
-| 8 | `order_value` | INTEGER | Tak | Wartość zamówienia. Wartość finansowa z dokładnością do 4 miejsc po przecinku, przechowywana × 10000. |
+| 8 | `order_value` | INTEGER | Tak | Wartość zamówienia. Wyliczana automatycznie jako `quantity_kg * port_price_per_kg`, gdy oba składniki są dostępne. Pole tylko do odczytu w formularzu. Przechowywana × 10000. |
+| 8a | `delivered_order_value` | INTEGER | Nie | Wartość zamówienia po dostawie. Wyliczana automatycznie jako `quantity_kg * delivered_price_per_kg`, gdy `delivered_price_per_kg` jest znane; w przeciwnym razie `NULL`. Nie jest wymagana przy tworzeniu zamówienia. Pole tylko do odczytu w formularzu. Przechowywana × 10000. |
 | 9 | `currency_code` | TEXT | Tak | Trzyliterowy kod waluty skopiowany z tabeli `currencies`, np. `EUR`, `USD`, `PLN`. |
 | 10 | `container_number` | TEXT | Nie | Numer kontenera. Maksymalnie 50 znaków. |
 | 11 | `eta_port_date` | TEXT | Nie | Planowana data dotarcia do portu. Format `YYYY-MM-DD`. |
@@ -61,11 +62,12 @@ Dzięki temu późniejsza zmiana nazwy towaru, dostawcy lub danych słownikowych
 | 20 | `invoice_number` | TEXT | Nie | Numer faktury. Maksymalnie 30 znaków. |
 | 21 | `payment_date` | TEXT | Nie | Data dokonania płatności. Format `YYYY-MM-DD`. |
 | 22 | `delivery_date` | TEXT | Nie | Faktyczna data dostawy. Format `YYYY-MM-DD`. |
-| 23 | `notes` | TEXT | Nie | Uwagi dodatkowe. Maksymalnie 512 znaków. |
-| 24 | `created_at` | TEXT | Tak | Data i czas utworzenia rekordu, ISO 8601. Zapisywana w UTC. |
-| 25 | `created_by` | TEXT | Tak | Login lub inny stabilny identyfikator użytkownika, który utworzył rekord. |
-| 26 | `updated_at` | TEXT | Nie | Data i czas ostatniej modyfikacji rekordu, ISO 8601. |
-| 27 | `updated_by` | TEXT | Nie | Login lub inny stabilny identyfikator użytkownika, który jako ostatni zmodyfikował rekord. |
+| 23 | `is_important` | INTEGER | Nie | Ręczna flaga „ważne / wymaga uwagi” ustawiana przez użytkownika. Wartość `0` lub `1`. |
+| 24 | `notes` | TEXT | Nie | Uwagi dodatkowe. Maksymalnie 512 znaków. |
+| 25 | `created_at` | TEXT | Tak | Data i czas utworzenia rekordu, ISO 8601. Zapisywana w UTC. |
+| 26 | `created_by` | TEXT | Tak | Login lub inny stabilny identyfikator użytkownika, który utworzył rekord. |
+| 27 | `updated_at` | TEXT | Nie | Data i czas ostatniej modyfikacji rekordu, ISO 8601. |
+| 28 | `updated_by` | TEXT | Nie | Login lub inny stabilny identyfikator użytkownika, który jako ostatni zmodyfikował rekord. |
 
 ---
 
@@ -80,7 +82,8 @@ Dzięki temu późniejsza zmiana nazwy towaru, dostawcy lub danych słownikowych
 | `quantity_kg` | Zamawiana ilość towaru wyrażona w pełnych kilogramach. |
 | `port_price_per_kg` | Cena jednostkowa za kilogram na etapie portowym. |
 | `delivered_price_per_kg` | Cena jednostkowa za kilogram po poznaniu pełnych kosztów dostarczenia. |
-| `order_value` | Całkowita wartość zamówienia. |
+| `order_value` | Całkowita wartość zamówienia, wyliczana automatycznie z ilości i ceny portowej. |
+| `delivered_order_value` | Całkowita wartość zamówienia po dostawie, wyliczana automatycznie z ilości i ceny po dostawie. |
 | `currency_code` | Trzyliterowy kod waluty skopiowany ze słownika walut w chwili tworzenia zamówienia. |
 | `container_number` | Numer kontenera przypisanego do transportu zamówienia. |
 | `eta_port_date` | Przewidywana data dotarcia transportu do portu. |
@@ -95,6 +98,7 @@ Dzięki temu późniejsza zmiana nazwy towaru, dostawcy lub danych słownikowych
 | `invoice_number` | Numer faktury związanej z zamówieniem. |
 | `payment_date` | Faktyczna data wykonania płatności. |
 | `delivery_date` | Faktyczna data dostarczenia zamówienia. |
+| `is_important` | Ręczna flaga „ważne / wymaga uwagi” ustawiana przez użytkownika w formularzu wpisu (FR-012). |
 | `notes` | Dodatkowe uwagi dotyczące zamówienia. |
 | `created_at` | Znacznik czasu utworzenia rekordu. |
 | `created_by` | Użytkownik, który utworzył rekord. |
@@ -109,7 +113,8 @@ Pola:
 
 - `port_price_per_kg`,
 - `delivered_price_per_kg`,
-- `order_value`
+- `order_value`,
+- `delivered_order_value`
 
 będą obsługiwały maksymalnie 4 miejsca po przecinku.
 
@@ -240,6 +245,12 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
     order_value INTEGER NOT NULL
         CHECK (order_value >= 0),
 
+    delivered_order_value INTEGER
+        CHECK (
+            delivered_order_value IS NULL
+            OR delivered_order_value >= 0
+        ),
+
     currency_code TEXT NOT NULL
         CHECK (
             length(currency_code) = 3
@@ -298,6 +309,12 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
     payment_date TEXT,
     delivery_date TEXT,
 
+    is_important INTEGER
+        CHECK (
+            is_important IS NULL
+            OR is_important IN (0, 1)
+        ),
+
     notes TEXT
         CHECK (
             notes IS NULL
@@ -313,6 +330,9 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
     updated_at TEXT,
     updated_by TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_is_important
+    ON purchase_orders(is_important);
 
 CREATE INDEX IF NOT EXISTS idx_purchase_orders_order_number
     ON purchase_orders(order_number);
@@ -348,10 +368,24 @@ COMMIT;
 9. `updated_at` pozostaje `NULL` do pierwszej modyfikacji rekordu.
 10. `delivered_price_per_kg` pozostaje `NULL`, dopóki dokładny koszt dostarczenia nie jest znany.
 11. Pola finansowe są przechowywane jako liczby całkowite pomnożone przez `10000`.
+12. `order_value` jest wyliczane automatycznie przez aplikację jako `quantity_kg * port_price_per_kg`; pole jest tylko do odczytu w formularzu.
+13. `delivered_order_value` jest wyliczane automatycznie przez aplikację jako `quantity_kg * delivered_price_per_kg`, gdy `delivered_price_per_kg` jest znane, w przeciwnym razie pozostaje `NULL`; pole jest tylko do odczytu w formularzu i nie jest wymagane przy tworzeniu zamówienia.
 
 ---
 
-## 8. Tematy do dalszego ustalenia
+## 8. Reguła „wymaga uwagi” (FR-012 i logika biznesowa)
+
+Wpis jest oznaczany jako „wymagający uwagi” w widoku tabelarycznym i w raporcie, gdy spełniony jest co najmniej jeden z warunków:
+
+1. `is_important = 1` — użytkownik ręcznie oznaczył wpis jako ważny.
+2. `eta_destination_date` jest ustawione, `delivery_date` jest `NULL`, a do `eta_destination_date` zostały co najwyżej 3 dni (lub termin już minął) — dostawa się zbliża (lub jest opóźniona), a nie została jeszcze potwierdzona.
+3. `delivery_date` jest ustawione, a `test_results` jest `NULL` — dostawa się zakończyła, ale nie wprowadzono jeszcze wyników badań.
+
+Flaga nie jest przechowywana jako osobna kolumna wynikowa — jest wyliczana w zapytaniu SQL w momencie odczytu (`date('now', '+3 days')`), ponieważ zależy od bieżącej daty, a przechowywanie wyniku groziłoby jego nieaktualnością.
+
+---
+
+## 9. Tematy do dalszego ustalenia
 
 W kolejnych wersjach dokumentacji należy doprecyzować między innymi:
 
@@ -367,10 +401,11 @@ W kolejnych wersjach dokumentacji należy doprecyzować między innymi:
 
 ---
 
-## 9. Historia zmian
+## 10. Historia zmian
 
 | Wersja | Data | Opis |
 |---|---|---|
 | 0.1 | 2026-08-24 | Utworzenie dokumentu bazowego i zebranie pierwszych ustaleń dotyczących struktury tabeli zamówień. |
 | 0.2 | 2026-08-24 | Dodanie tabel pomocniczych `products`, `suppliers`, `currencies` oraz pierwszej wersji skryptu inicjalizującego SQLite. |
 | 0.3 | 2026-08-24 | Zmiana modelu danych historycznych: wartości z tabel pomocniczych są kopiowane do `purchase_orders`; usunięto `product_id`, `supplier_id` i `currency_id` z tabeli zamówień. Potwierdzono autonumerowane pole `id` w tabeli głównej. |
+| 0.4 | 2026-08-25 | Dodanie kolumny `is_important` (ręczna flaga „ważne”) i reguły „wymaga uwagi” (FR-012), wyliczanej w zapytaniu na podstawie `is_important`, `eta_destination_date`, `delivery_date` i `test_results`. |

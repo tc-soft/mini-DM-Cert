@@ -1,7 +1,7 @@
 import { defineMiddleware } from "astro:middleware";
 import { getSessionUser } from "@/lib/auth";
 
-const PROTECTED_ROUTES = ["/dashboard", "/orders", "/api/orders"];
+const PROTECTED_ROUTES = ["/dashboard", "/orders", "/reports", "/admin", "/api/orders", "/api/dictionaries", "/api/users"];
 
 export const onRequest = defineMiddleware(async (context, next) => {
   context.locals.user = getSessionUser(context.cookies);

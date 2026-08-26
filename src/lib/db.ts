@@ -38,6 +38,7 @@ export interface PurchaseOrderRow {
   port_price_per_kg: number;
   delivered_price_per_kg: number | null;
   order_value: number;
+  delivered_order_value: number | null;
   currency_code: string;
   container_number: string | null;
   eta_port_date: string | null;
@@ -52,6 +53,7 @@ export interface PurchaseOrderRow {
   invoice_number: string | null;
   payment_date: string | null;
   delivery_date: string | null;
+  is_important: 0 | 1 | null;
   notes: string | null;
   created_at: string;
   created_by: string;
@@ -138,6 +140,12 @@ db.exec(`
     order_value INTEGER NOT NULL
       CHECK (order_value >= 0),
 
+    delivered_order_value INTEGER
+      CHECK (
+        delivered_order_value IS NULL
+        OR delivered_order_value >= 0
+      ),
+
     currency_code TEXT NOT NULL
       CHECK (
         length(currency_code) = 3
@@ -196,6 +204,12 @@ db.exec(`
     payment_date TEXT,
     delivery_date TEXT,
 
+    is_important INTEGER
+      CHECK (
+        is_important IS NULL
+        OR is_important IN (0, 1)
+      ),
+
     notes TEXT
       CHECK (
         notes IS NULL
@@ -211,7 +225,24 @@ db.exec(`
     updated_at TEXT,
     updated_by TEXT
   );
+`);
 
+// CREATE TABLE IF NOT EXISTS above is a no-op on a database that already has purchase_orders
+// from before is_important existed, so the column has to be retrofitted explicitly.
+const purchaseOrderColumns = db.prepare("PRAGMA table_info(purchase_orders)").all() as { name: string }[];
+if (!purchaseOrderColumns.some((c) => c.name === "is_important")) {
+  db.exec(
+    "ALTER TABLE purchase_orders ADD COLUMN is_important INTEGER CHECK (is_important IS NULL OR is_important IN (0, 1))",
+  );
+}
+if (!purchaseOrderColumns.some((c) => c.name === "delivered_order_value")) {
+  db.exec(
+    "ALTER TABLE purchase_orders ADD COLUMN delivered_order_value INTEGER CHECK (delivered_order_value IS NULL OR delivered_order_value >= 0)",
+  );
+}
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_purchase_orders_is_important ON purchase_orders(is_important);
   CREATE INDEX IF NOT EXISTS idx_purchase_orders_order_number ON purchase_orders(order_number);
   CREATE INDEX IF NOT EXISTS idx_purchase_orders_product_name ON purchase_orders(product_name);
   CREATE INDEX IF NOT EXISTS idx_purchase_orders_supplier_name ON purchase_orders(supplier_name);

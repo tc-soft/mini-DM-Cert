@@ -12,3 +12,8 @@ export function parseMoneyToInt(raw: string): number | null {
 export function formatMoney(scaled: number): string {
   return (scaled / SCALE).toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 }
+
+// Plain decimal string (no locale grouping) suitable for prefilling a number input on edit.
+export function moneyToInputValue(scaled: number): string {
+  return Number((scaled / SCALE).toFixed(4)).toString();
+}

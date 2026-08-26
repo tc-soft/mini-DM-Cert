@@ -1,0 +1,67 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import OrderForm from "@/components/orders/OrderForm";
+import { listProducts, listSuppliers, listCurrencies, getOrderById } from "@/lib/orders";
+import { moneyToInputValue } from "@/lib/money";
+
+const id = Number(Astro.params.id);
+const order = Number.isInteger(id) ? getOrderById(id) : undefined;
+if (!order) {
+  return Astro.redirect("/orders");
+}
+
+const error = Astro.url.searchParams.get("error");
+const products = listProducts().map((p) => p.name);
+const suppliers = listSuppliers().map((s) => s.name);
+const currencies = listCurrencies().map((c) => c.code);
+
+const initialValues = {
+  orderNumber: order.order_number ?? "",
+  productName: order.product_name,
+  supplierName: order.supplier_name,
+  quantityKg: String(order.quantity_kg),
+  portPricePerKg: moneyToInputValue(order.port_price_per_kg),
+  currencyCode: order.currency_code,
+  containerNumber: order.container_number ?? "",
+  etaPortDate: order.eta_port_date ?? "",
+  etaDestinationDate: order.eta_destination_date ?? "",
+  hasEur1Certificate: order.has_eur1_certificate === 1,
+  deliveredPricePerKg: order.delivered_price_per_kg === null ? "" : moneyToInputValue(order.delivered_price_per_kg),
+  batchNumber: order.batch_number ?? "",
+  sentForTestingDate: order.sent_for_testing_date ?? "",
+  testResults: order.test_results ?? "",
+  isBlocked: order.is_blocked === 1,
+  takenForProduction: order.taken_for_production === 1,
+  paymentDueDate: order.payment_due_date ?? "",
+  invoiceNumber: order.invoice_number ?? "",
+  paymentDate: order.payment_date ?? "",
+  deliveryDate: order.delivery_date ?? "",
+  isImportant: order.is_important === 1,
+  notes: order.notes ?? "",
+};
+---
+
+<Layout title="Edytuj zamówienie">
+  <div class="bg-cosmic min-h-screen p-4 py-10">
+    <div
+      class="mx-auto w-full max-w-3xl rounded-2xl border border-white/10 bg-white/10 p-8 text-white backdrop-blur-xl"
+    >
+      <div class="mb-6 flex items-center justify-between">
+        <h1 class="bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-2xl font-bold text-transparent">
+          Edytuj zamówienie
+        </h1>
+        <a href="/orders" class="text-sm text-blue-100/70 hover:text-white">&larr; Wróć do listy</a>
+      </div>
+      <OrderForm
+        products={products}
+        suppliers={suppliers}
+        currencies={currencies}
+        serverError={error}
+        mode="edit"
+        action={`/api/orders/${order.id}`}
+        initialValues={initialValues}
+        client:load
+      />
+    </div>
+  </div>
+</Layout>

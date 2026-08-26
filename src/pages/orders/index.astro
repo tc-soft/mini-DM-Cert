@@ -2,26 +2,25 @@
 import Layout from "@/layouts/Layout.astro";
 import { listOrders, listOrderFilterOptions } from "@/lib/orders";
 import { formatMoney } from "@/lib/money";
+import { queryParam } from "@/lib/http";
+import { TriangleAlert } from "lucide-react";
 
 // Query params are the only place these live — nothing is persisted server-side, so filtering
 // never changes the default view another user sees (FR-005).
-function param(name: string): string | null {
-  const value = Astro.url.searchParams.get(name)?.trim() ?? "";
-  return value.length === 0 ? null : value;
-}
-
 const filters = {
-  q: param("q"),
-  product: param("product"),
-  supplier: param("supplier"),
-  currency: param("currency"),
-  etaFrom: param("eta_from"),
-  etaTo: param("eta_to"),
+  q: queryParam(Astro.url, "q"),
+  product: queryParam(Astro.url, "product"),
+  supplier: queryParam(Astro.url, "supplier"),
+  currency: queryParam(Astro.url, "currency"),
+  etaFrom: queryParam(Astro.url, "eta_from"),
+  etaTo: queryParam(Astro.url, "eta_to"),
+  onlyAttention: queryParam(Astro.url, "attention") === "1",
 };
-const hasActiveFilters = Object.values(filters).some((v) => v !== null);
+const hasActiveFilters = Object.values(filters).some((v) => v !== null && v !== false);
 
 const orders = listOrders(filters);
 const filterOptions = listOrderFilterOptions();
+const { user } = Astro.locals;
 ---
 
 <Layout title="Zamówienia">
@@ -31,12 +30,27 @@ const filterOptions = listOrderFilterOptions();
         <h1 class="bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-2xl font-bold text-transparent">
           Zamówienia
         </h1>
-        <a
-          href="/orders/new"
-          class="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-500"
-        >
-          + Nowe zamówienie
-        </a>
+        <div class="flex items-center gap-3">
+          {
+            user?.role === "admin" && (
+              <>
+                <a href="/admin/users" class="text-sm text-blue-100/70 hover:text-white">
+                  Użytkownicy
+                </a>
+                <a href="/admin/dictionaries" class="text-sm text-blue-100/70 hover:text-white">
+                  Słowniki
+                </a>
+              </>
+            )
+          }
+          <a href="/reports" class="text-sm text-blue-100/70 hover:text-white">Raport</a>
+          <a
+            href="/orders/new"
+            class="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-500"
+          >
+            + Nowe zamówienie
+          </a>
+        </div>
       </div>
 
       <form
@@ -140,6 +154,17 @@ const filterOptions = listOrderFilterOptions();
           >
             Filtruj
           </button>
+          <label for="attention" class="flex items-center gap-2 text-sm text-blue-100/80">
+            <input
+              id="attention"
+              name="attention"
+              type="checkbox"
+              value="1"
+              checked={filters.onlyAttention}
+              class="size-4 rounded border-white/30 bg-white/10 text-purple-500 focus:ring-purple-400"
+            />
+            Tylko wymagające uwagi
+          </label>
           {
             hasActiveFilters && (
               <a href="/orders" class="text-sm text-blue-100/70 hover:text-white">
@@ -158,6 +183,7 @@ const filterOptions = listOrderFilterOptions();
         <table class="w-full min-w-[900px] text-left text-sm text-white">
           <thead class="border-b border-white/10 text-blue-100/70">
             <tr>
+              <th class="px-4 py-3 font-medium"><span class="sr-only">Uwaga</span></th>
               <th class="px-4 py-3 font-medium">Nr zamówienia</th>
               <th class="px-4 py-3 font-medium">Towar</th>
               <th class="px-4 py-3 font-medium">Dostawca</th>
@@ -167,19 +193,30 @@ const filterOptions = listOrderFilterOptions();
               <th class="px-4 py-3 font-medium">ETA port</th>
               <th class="px-4 py-3 font-medium">ETA cel</th>
               <th class="px-4 py-3 font-medium">Dodał</th>
+              <th class="px-4 py-3 font-medium">Akcje</th>
             </tr>
           </thead>
           <tbody>
             {
               orders.length === 0 ? (
                 <tr>
-                  <td colspan="9" class="px-4 py-8 text-center text-blue-100/50">
+                  <td colspan="11" class="px-4 py-8 text-center text-blue-100/50">
                     {hasActiveFilters ? "Brak zamówień pasujących do filtrów." : "Brak zamówień. Dodaj pierwsze."}
                   </td>
                 </tr>
               ) : (
                 orders.map((o) => (
-                  <tr class="border-b border-white/5 last:border-0 hover:bg-white/5">
+                  <tr
+                    class:list={[
+                      "border-b border-white/5 last:border-0 hover:bg-white/5",
+                      o.needs_attention === 1 && "bg-amber-500/10",
+                    ]}
+                  >
+                    <td class="px-4 py-3">
+                      {o.needs_attention === 1 && (
+                        <TriangleAlert className="size-4 text-amber-300" aria-label="Wymaga uwagi" />
+                      )}
+                    </td>
                     <td class="px-4 py-3">{o.order_number ?? "—"}</td>
                     <td class="px-4 py-3">{o.product_name}</td>
                     <td class="px-4 py-3">{o.supplier_name}</td>
@@ -191,6 +228,24 @@ const filterOptions = listOrderFilterOptions();
                     <td class="px-4 py-3">{o.eta_port_date ?? "—"}</td>
                     <td class="px-4 py-3">{o.eta_destination_date ?? "—"}</td>
                     <td class="px-4 py-3 text-blue-100/70">{o.created_by}</td>
+                    <td class="px-4 py-3">
+                      <div class="flex items-center gap-3">
+                        <a href={`/orders/${o.id}/edit`} class="text-blue-200 hover:text-white">
+                          Edytuj
+                        </a>
+                        {user?.role === "admin" && (
+                          <form
+                            method="POST"
+                            action={`/api/orders/${o.id}/delete`}
+                            onsubmit="return confirm('Usunąć to zamówienie? Tej operacji nie można cofnąć.');"
+                          >
+                            <button type="submit" class="text-red-300 hover:text-red-100">
+                              Usuń
+                            </button>
+                          </form>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))
               )

@@ -1,0 +1,142 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { listOrdersForReport, sumOrderValueByCurrency } from "@/lib/orders";
+import { formatMoney } from "@/lib/money";
+import { queryParam } from "@/lib/http";
+import { TriangleAlert } from "lucide-react";
+
+const filters = {
+  dateFrom: queryParam(Astro.url, "from"),
+  dateTo: queryParam(Astro.url, "to"),
+};
+const hasRange = filters.dateFrom !== null || filters.dateTo !== null;
+
+const orders = listOrdersForReport(filters);
+const totals = sumOrderValueByCurrency(filters);
+---
+
+<Layout title="Raport zamówień">
+  <div class="bg-cosmic min-h-screen p-4 py-10">
+    <div class="mx-auto w-full max-w-6xl">
+      <div class="mb-6 flex items-center justify-between">
+        <h1 class="bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-2xl font-bold text-transparent">
+          Raport zamówień
+        </h1>
+        <a href="/orders" class="text-sm text-blue-100/70 hover:text-white">&larr; Wróć do listy</a>
+      </div>
+
+      <form
+        method="GET"
+        action="/reports"
+        class="mb-4 flex flex-wrap items-end gap-3 rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-xl"
+      >
+        <div>
+          <label for="from" class="mb-1 block text-xs text-blue-100/70">Dostawa od</label>
+          <input
+            id="from"
+            name="from"
+            type="date"
+            value={filters.dateFrom ?? ""}
+            class="w-full rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-sm text-white [color-scheme:dark] focus:ring-2 focus:ring-purple-400 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label for="to" class="mb-1 block text-xs text-blue-100/70">Dostawa do</label>
+          <input
+            id="to"
+            name="to"
+            type="date"
+            value={filters.dateTo ?? ""}
+            class="w-full rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-sm text-white [color-scheme:dark] focus:ring-2 focus:ring-purple-400 focus:outline-none"
+          />
+        </div>
+
+        <button
+          type="submit"
+          class="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-500"
+        >
+          Generuj raport
+        </button>
+        {
+          hasRange && (
+            <a href="/reports" class="text-sm text-blue-100/70 hover:text-white">
+              Wyczyść zakres
+            </a>
+          )
+        }
+        <span class="text-sm text-blue-100/50">
+          {orders.length}
+          {orders.length === 1 ? "wynik" : "wyników"}
+        </span>
+      </form>
+
+      <div class="mb-4 flex flex-wrap gap-3">
+        {
+          totals.length === 0 ? (
+            <span class="text-sm text-blue-100/50">Brak zamówień w wybranym zakresie dat.</span>
+          ) : (
+            totals.map((t) => (
+              <div class="rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-white backdrop-blur-xl">
+                <div class="text-xs text-blue-100/60">{t.currencyCode}</div>
+                <div class="text-lg font-semibold">
+                  {formatMoney(t.total)} {t.currencyCode}
+                </div>
+              </div>
+            ))
+          )
+        }
+      </div>
+
+      <div class="overflow-x-auto rounded-2xl border border-white/10 bg-white/10 backdrop-blur-xl">
+        <table class="w-full min-w-[800px] text-left text-sm text-white">
+          <thead class="border-b border-white/10 text-blue-100/70">
+            <tr>
+              <th class="px-4 py-3 font-medium"><span class="sr-only">Uwaga</span></th>
+              <th class="px-4 py-3 font-medium">Nr zamówienia</th>
+              <th class="px-4 py-3 font-medium">Dostawca</th>
+              <th class="px-4 py-3 font-medium">Towar</th>
+              <th class="px-4 py-3 text-right font-medium">Ilość (kg)</th>
+              <th class="px-4 py-3 text-right font-medium">Wartość</th>
+              <th class="px-4 py-3 font-medium">ETA cel</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              orders.length === 0 ? (
+                <tr>
+                  <td colspan="7" class="px-4 py-8 text-center text-blue-100/50">
+                    Brak zamówień w wybranym zakresie dat.
+                  </td>
+                </tr>
+              ) : (
+                orders.map((o) => (
+                  <tr
+                    class:list={[
+                      "border-b border-white/5 last:border-0 hover:bg-white/5",
+                      o.needs_attention === 1 && "bg-amber-500/10",
+                    ]}
+                  >
+                    <td class="px-4 py-3">
+                      {o.needs_attention === 1 && (
+                        <TriangleAlert className="size-4 text-amber-300" aria-label="Wymaga uwagi" />
+                      )}
+                    </td>
+                    <td class="px-4 py-3">{o.order_number ?? "—"}</td>
+                    <td class="px-4 py-3">{o.supplier_name}</td>
+                    <td class="px-4 py-3">{o.product_name}</td>
+                    <td class="px-4 py-3 text-right">{o.quantity_kg.toLocaleString("pl-PL")}</td>
+                    <td class="px-4 py-3 text-right">
+                      {formatMoney(o.order_value)} {o.currency_code}
+                    </td>
+                    <td class="px-4 py-3">{o.eta_destination_date ?? "—"}</td>
+                  </tr>
+                ))
+              )
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</Layout>
