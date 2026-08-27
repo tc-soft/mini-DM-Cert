@@ -1,7 +1,7 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import OrderForm from "@/components/orders/OrderForm";
-import { listProducts, listSuppliers, listCurrencies, getOrderById } from "@/lib/orders";
+import { listProducts, listSuppliers, listCurrencies, getOrderById, getOrderHistory } from "@/lib/orders";
 import { moneyToInputValue } from "@/lib/money";
 
 const id = Number(Astro.params.id);
@@ -11,6 +11,7 @@ if (!order) {
 }
 
 const error = Astro.url.searchParams.get("error");
+const history = getOrderHistory(order.id);
 const products = listProducts().map((p) => p.name);
 const suppliers = listSuppliers().map((s) => s.name);
 const currencies = listCurrencies().map((c) => c.code);
@@ -62,6 +63,36 @@ const initialValues = {
         initialValues={initialValues}
         client:load
       />
+
+      <div class="mt-8 border-t border-white/10 pt-6">
+        <h2 class="mb-4 text-lg font-semibold text-white">Historia zmian</h2>
+        {
+          history.length === 0 ? (
+            <p class="text-sm text-blue-100/60">Brak edycji od utworzenia wpisu.</p>
+          ) : (
+            <ul class="space-y-4">
+              {history.map((entry) => (
+                <li class="rounded-xl border border-white/10 bg-white/5 p-4">
+                  <div class="mb-2 text-sm text-blue-100/70">
+                    <span class="font-medium text-white">{entry.editedBy}</span>
+                    {" — "}
+                    {new Date(entry.editedAt).toLocaleString("pl-PL")}
+                  </div>
+                  <ul class="space-y-1 text-sm">
+                    {entry.changes.map((change) => (
+                      <li class="text-blue-100/80">
+                        <span class="text-blue-100/60">{change.label}:</span> {change.oldValue}
+                        {" → "}
+                        {change.newValue}
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          )
+        }
+      </div>
     </div>
   </div>
 </Layout>

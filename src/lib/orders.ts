@@ -1,4 +1,12 @@
-import { db, type CurrencyRow, type ProductRow, type PurchaseOrderRow, type SupplierRow } from "@/lib/db";
+import {
+  db,
+  type CurrencyRow,
+  type ProductRow,
+  type PurchaseOrderHistoryRow,
+  type PurchaseOrderRow,
+  type SupplierRow,
+} from "@/lib/db";
+import { formatMoney } from "@/lib/money";
 
 export function listProducts(): ProductRow[] {
   return db.prepare("SELECT id, name FROM products ORDER BY name").all() as ProductRow[];
@@ -161,9 +169,75 @@ export function createOrder(input: NewOrderInput): void {
   insertAll(input);
 }
 
+type HistoryFormat = "text" | "money" | "bool" | "date";
+
+// Maps each editable DB column to its label/format for the change-history view (FR-010).
+// Keys match purchase_orders columns, not the camelCase UpdateOrderInput keys, since the diff
+// is computed against the row read back from the DB.
+const HISTORY_FIELDS: { column: keyof PurchaseOrderRow; label: string; format: HistoryFormat }[] = [
+  { column: "order_number", label: "Numer zamówienia (CRM)", format: "text" },
+  { column: "product_name", label: "Towar", format: "text" },
+  { column: "supplier_name", label: "Dostawca", format: "text" },
+  { column: "quantity_kg", label: "Ilość (kg)", format: "text" },
+  { column: "port_price_per_kg", label: "Cena portowa / kg", format: "money" },
+  { column: "delivered_price_per_kg", label: "Cena po dostawie / kg", format: "money" },
+  { column: "order_value", label: "Wartość zamówienia", format: "money" },
+  { column: "delivered_order_value", label: "Wartość zamówienia po dostawie", format: "money" },
+  { column: "currency_code", label: "Waluta", format: "text" },
+  { column: "container_number", label: "Numer kontenera", format: "text" },
+  { column: "eta_port_date", label: "ETA port", format: "date" },
+  { column: "eta_destination_date", label: "ETA cel", format: "date" },
+  { column: "has_eur1_certificate", label: "Certyfikat EUR.1", format: "bool" },
+  { column: "batch_number", label: "Numer partii", format: "text" },
+  { column: "sent_for_testing_date", label: "Data wysłania do badań", format: "date" },
+  { column: "test_results", label: "Wynik badań", format: "text" },
+  { column: "is_blocked", label: "Zablokowane", format: "bool" },
+  { column: "taken_for_production", label: "Pobrane do produkcji", format: "bool" },
+  { column: "payment_due_date", label: "Termin płatności", format: "date" },
+  { column: "invoice_number", label: "Numer faktury", format: "text" },
+  { column: "payment_date", label: "Data płatności", format: "date" },
+  { column: "delivery_date", label: "Data dostawy", format: "date" },
+  { column: "is_important", label: "Ważne", format: "bool" },
+  { column: "notes", label: "Uwagi", format: "text" },
+];
+
+function formatHistoryValue(value: unknown, format: HistoryFormat): string {
+  if (value === null || value === undefined || value === "") return "—";
+  if (format === "money") return formatMoney(value as number);
+  if (format === "bool") return value === 1 ? "Tak" : "Nie";
+  return String(value);
+}
+
+export interface OrderHistoryChange {
+  label: string;
+  oldValue: string;
+  newValue: string;
+}
+
+export interface OrderHistoryEntry {
+  id: number;
+  editedBy: string;
+  editedAt: string;
+  changes: OrderHistoryChange[];
+}
+
+export function getOrderHistory(orderId: number): OrderHistoryEntry[] {
+  const rows = db
+    .prepare("SELECT * FROM purchase_order_history WHERE order_id = ? ORDER BY edited_at DESC, id DESC")
+    .all(orderId) as PurchaseOrderHistoryRow[];
+
+  return rows.map((row) => ({
+    id: row.id,
+    editedBy: row.edited_by,
+    editedAt: row.edited_at,
+    changes: JSON.parse(row.changes) as OrderHistoryChange[],
+  }));
+}
+
 // product_name/supplier_name are picked from a combobox that also accepts free text, so a new
 // value used on edit is added to the dictionary the same way createOrder does.
 export function updateOrder(id: number, input: UpdateOrderInput): void {
+  const before = getOrderById(id);
   const updateOrderStmt = db.prepare(
     `UPDATE purchase_orders SET
        order_number = @orderNumber,
@@ -195,10 +269,29 @@ export function updateOrder(id: number, input: UpdateOrderInput): void {
      WHERE id = @id`,
   );
 
+  const insertHistory = db.prepare(
+    "INSERT INTO purchase_order_history (order_id, edited_by, changes) VALUES (@orderId, @editedBy, @changes)",
+  );
+
   const updateAll = db.transaction((order: UpdateOrderInput & { id: number }) => {
     db.prepare("INSERT OR IGNORE INTO products (name) VALUES (?)").run(order.productName);
     db.prepare("INSERT OR IGNORE INTO suppliers (name) VALUES (?)").run(order.supplierName);
     updateOrderStmt.run(order);
+
+    const after = getOrderById(order.id);
+    if (!before || !after) return;
+
+    const changes: OrderHistoryChange[] = HISTORY_FIELDS.filter(
+      (field) => before[field.column] !== after[field.column],
+    ).map((field) => ({
+      label: field.label,
+      oldValue: formatHistoryValue(before[field.column], field.format),
+      newValue: formatHistoryValue(after[field.column], field.format),
+    }));
+
+    if (changes.length > 0) {
+      insertHistory.run({ orderId: order.id, editedBy: order.updatedBy, changes: JSON.stringify(changes) });
+    }
   });
 
   updateAll({ ...input, id });

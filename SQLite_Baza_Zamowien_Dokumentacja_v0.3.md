@@ -3,8 +3,8 @@
 **Projekt:** baza zamówień  
 **Silnik bazy danych:** SQLite  
 **Środowisko aplikacji:** Node.js  
-**Wersja dokumentu:** 0.4  
-**Data:** 2026-08-25
+**Wersja dokumentu:** 0.5  
+**Data:** 2026-08-27
 
 ---
 
@@ -182,6 +182,20 @@ Dzięki temu dane historyczne są niezależne od późniejszych zmian w słownik
 | `id` | INTEGER | Tak | Klucz główny z autonumeracją. |
 | `code` | TEXT | Tak | Trzyliterowy kod waluty ISO 4217, np. `EUR`, `USD`, `PLN`. Wartość unikalna. |
 
+### 6.4. Tabela historii zmian – `purchase_order_history` (FR-010)
+
+Rejestruje kto i kiedy edytował dany wpis oraz które pola się zmieniły. Wpis w tej tabeli powstaje wyłącznie przy edycji istniejącego zamówienia (nie przy jego utworzeniu) i tylko wtedy, gdy przynajmniej jedno pole faktycznie się zmieniło.
+
+| Pole | Typ SQLite | Wymagane | Uwagi |
+|---|---|:---:|---|
+| `id` | INTEGER | Tak | Klucz główny z autonumeracją. |
+| `order_id` | INTEGER | Tak | Klucz obcy do `purchase_orders.id`, `ON DELETE CASCADE`. |
+| `edited_by` | TEXT | Tak | Login użytkownika, który zapisał edycję. |
+| `edited_at` | TEXT | Tak | Znacznik czasu UTC, ustawiany automatycznie przez SQLite. |
+| `changes` | TEXT | Tak | JSON — tablica obiektów `{ label, oldValue, newValue }`, po jednym na każde zmienione pole. Wartości są już sformatowane do wyświetlenia (np. kwoty przez `formatMoney`, flagi jako „Tak”/„Nie”). |
+
+> W przeciwieństwie do pozostałych tabel, `changes` przechowuje dane zdenormalizowane (gotowe do wyświetlenia), a nie surowe wartości kolumn — historia jest wyłącznie do odczytu i nie musi być zgodna z ewentualną przyszłą zmianą formatu w aplikacji.
+
 ---
 
 ## 7. Skrypt inicjalizujący bazę SQLite
@@ -352,6 +366,19 @@ CREATE INDEX IF NOT EXISTS idx_purchase_orders_batch_number
 CREATE INDEX IF NOT EXISTS idx_purchase_orders_container_number
     ON purchase_orders(container_number);
 
+CREATE TABLE IF NOT EXISTS purchase_order_history (
+    id INTEGER PRIMARY KEY,
+    order_id INTEGER NOT NULL
+        REFERENCES purchase_orders(id) ON DELETE CASCADE,
+    edited_by TEXT NOT NULL,
+    edited_at TEXT NOT NULL
+        DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    changes TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_purchase_order_history_order_id
+    ON purchase_order_history(order_id);
+
 COMMIT;
 ```
 
@@ -409,3 +436,4 @@ W kolejnych wersjach dokumentacji należy doprecyzować między innymi:
 | 0.2 | 2026-08-24 | Dodanie tabel pomocniczych `products`, `suppliers`, `currencies` oraz pierwszej wersji skryptu inicjalizującego SQLite. |
 | 0.3 | 2026-08-24 | Zmiana modelu danych historycznych: wartości z tabel pomocniczych są kopiowane do `purchase_orders`; usunięto `product_id`, `supplier_id` i `currency_id` z tabeli zamówień. Potwierdzono autonumerowane pole `id` w tabeli głównej. |
 | 0.4 | 2026-08-25 | Dodanie kolumny `is_important` (ręczna flaga „ważne”) i reguły „wymaga uwagi” (FR-012), wyliczanej w zapytaniu na podstawie `is_important`, `eta_destination_date`, `delivery_date` i `test_results`. |
+| 0.5 | 2026-08-27 | Dodanie tabeli `purchase_order_history` (kto/kiedy edytował i które pola się zmieniły) realizującej FR-010. Historia obejmuje wyłącznie edycje, nie utworzenie wpisu. |

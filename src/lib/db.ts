@@ -61,6 +61,14 @@ export interface PurchaseOrderRow {
   updated_by: string | null;
 }
 
+export interface PurchaseOrderHistoryRow {
+  id: number;
+  order_id: number;
+  edited_by: string;
+  edited_at: string;
+  changes: string;
+}
+
 const dbPath = resolve(DATABASE_PATH || "./data/mini-dm.db");
 mkdirSync(dirname(dbPath), { recursive: true });
 
@@ -240,6 +248,18 @@ if (!purchaseOrderColumns.some((c) => c.name === "delivered_order_value")) {
     "ALTER TABLE purchase_orders ADD COLUMN delivered_order_value INTEGER CHECK (delivered_order_value IS NULL OR delivered_order_value >= 0)",
   );
 }
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS purchase_order_history (
+    id INTEGER PRIMARY KEY,
+    order_id INTEGER NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
+    edited_by TEXT NOT NULL,
+    edited_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    changes TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_purchase_order_history_order_id ON purchase_order_history(order_id);
+`);
 
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_purchase_orders_is_important ON purchase_orders(is_important);
