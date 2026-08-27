@@ -10,7 +10,8 @@
     "astro": "astro",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "docs:pdf": "node scripts/build-schema-pdf.mjs"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.8",
@@ -47,6 +48,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "husky": "9.1.7",
     "lint-staged": "^16.3.3",
+    "md-to-pdf": "^5.2.5",
     "prettier": "^3.8.3",
     "prettier-plugin-astro": "0.14.1",
     "prettier-plugin-tailwindcss": "^0.8.0",

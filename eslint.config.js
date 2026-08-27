@@ -59,6 +59,16 @@ const reactConfig = tseslint.config({
   },
 });
 
+const nodeScriptsConfig = tseslint.config({
+  files: ["scripts/**/*.mjs"],
+  languageOptions: {
+    globals: {
+      console: "readonly",
+      process: "readonly",
+    },
+  },
+});
+
 const astroConfig = tseslint.config({
   files: ["**/*.astro"],
   rules: {
@@ -75,5 +85,6 @@ export default tseslint.config(
   eslintPluginAstro.configs["flat/recommended"],
   ...eslintPluginAstro.configs["flat/jsx-a11y-recommended"],
   astroConfig,
+  nodeScriptsConfig,
   eslintPluginPrettier,
 );
