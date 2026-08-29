@@ -3,7 +3,7 @@
 **Projekt:** baza zamówień  
 **Silnik bazy danych:** SQLite  
 **Środowisko aplikacji:** Node.js  
-**Wersja dokumentu:** 0.7  
+**Wersja dokumentu:** 0.8  
 **Data:** 2026-08-29
 
 ---
@@ -414,21 +414,38 @@ Flaga nie jest przechowywana jako osobna kolumna wynikowa — jest wyliczana w z
 
 ---
 
-## 9. Tematy do dalszego ustalenia
+## 9. Wersjonowane migracje schematu
+
+`CREATE TABLE/INDEX IF NOT EXISTS` w skrypcie inicjalizującym pozostaje wystarczające dla nowych tabel i indeksów — jest bezpieczne zarówno na świeżej, jak i na już istniejącej bazie. Nie wystarcza jednak dla zmian w już istniejącej tabeli (nowa kolumna, zmiana ograniczenia), bo SQLite nie ma odpowiednika `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`.
+
+Takie zmiany są od wersji 0.8 aplikowane przez prosty mechanizm wersjonowanych migracji (`src/lib/migrations.ts`):
+
+1. Tabela `schema_migrations` (`version`, `name`, `applied_at`) przechowuje log zastosowanych migracji.
+2. Każda migracja to numerowany krok z funkcją `up(db)`, idempotentną wewnętrznie (sprawdza `PRAGMA table_info` przed `ALTER TABLE`, na wypadek gdyby kolumna już istniała ze świeżego schematu).
+3. Przy starcie aplikacji uruchamiane są tylko migracje o numerze wyższym niż najwyższy już zapisany w `schema_migrations`, każda w osobnej transakcji.
+4. Na świeżej bazie migracje stają się no-op (kolumny już są w bazowym `CREATE TABLE`), ale i tak zostają odnotowane — świeża i zaktualizowana-w-miejscu baza kończą z identyczną historią `schema_migrations`.
+
+Dotychczasowe dwa ręczne dopasowania kolumn (`is_important` z wersji 0.4, `delivered_order_value` z modelu finansowego) zostały przekształcone w migracje nr 1 i 2. Każda kolejna zmiana kolumny/ograniczenia w istniejącej tabeli powinna trafić jako nowy, kolejny numer w tej samej liście — nie jako kolejny ręczny `PRAGMA table_info` + `ALTER TABLE` w `db.ts`.
+
+Zweryfikowano end-to-end (świeża baza, symulowana baza sprzed migracji z realnymi danymi, podwójne uruchomienie) — dane nie są tracone, kolumny/indeksy odtwarzane poprawnie, mechanizm idempotentny.
+
+---
+
+## 10. Tematy do dalszego ustalenia
 
 W kolejnych wersjach dokumentacji należy doprecyzować między innymi:
 
-- czy `container_number` ma podlegać walidacji zgodnej ze standardowym formatem numerów kontenerów,
-- strategię migracji schematu bazy przy kolejnych wersjach aplikacji (obecnie `CREATE TABLE/INDEX IF NOT EXISTS` przy starcie, bez wersjonowanych migracji).
+- czy `container_number` ma podlegać walidacji zgodnej ze standardowym formatem numerów kontenerów.
 
 Rozstrzygnięte od poprzedniej wersji dokumentu:
 
 - `order_number` i `batch_number` — unikalne w praktyce: aplikacja odrzuca zapis, jeśli podana wartość jest już użyta w innym wpisie (patrz punkt 15 w Uwagach do skryptu). Brak klucza unikalnego w samej bazie — celowo, żeby uniknąć błędu przy starcie na już istniejących danych z ewentualnymi duplikatami sprzed wprowadzenia tej reguły.
 - wartości początkowe tabeli `currencies`, sposób zarządzania listą towarów/dostawców, zasady `updated_at`/`updated_by`, tabela użytkowników, nazwa/lokalizacja pliku bazy — zaimplementowane (zarządzanie słownikami i użytkownikami w panelu administratora, `updated_at`/`updated_by` ustawiane przy edycji, baza w `data/mini-dm.db` konfigurowalna przez `DATABASE_PATH`).
+- strategia migracji schematu bazy przy kolejnych wersjach aplikacji — patrz sekcja 9 powyżej.
 
 ---
 
-## 10. Historia zmian
+## 11. Historia zmian
 
 | Wersja | Data | Opis |
 |---|---|---|
@@ -439,3 +456,4 @@ Rozstrzygnięte od poprzedniej wersji dokumentu:
 | 0.5 | 2026-08-27 | Dodanie tabeli `purchase_order_history` (kto/kiedy edytował i które pola się zmieniły) realizującej FR-010. Historia obejmuje wyłącznie edycje, nie utworzenie wpisu. |
 | 0.6 | 2026-08-29 | Doprecyzowanie: aplikacja waliduje przy zapisie, że `currency_code` istnieje w słowniku `currencies` (mimo braku klucza obcego, patrz punkt 4/14 w Uwagach do skryptu). Rozważana walidacja "termin dostawy nie wcześniejszy niż data złożenia zamówienia" została świadomie odrzucona — `created_at` to znacznik utworzenia rekordu, nie biznesowa data złożenia zamówienia, więc taka reguła uniemożliwiałaby uzupełnianie zaległych wpisów historycznych. |
 | 0.7 | 2026-08-29 | Rozstrzygnięcie unikalności `order_number` i `batch_number`: aplikacja odrzuca zapis przy duplikacie (bez klucza `UNIQUE` w bazie, patrz punkt 15 w Uwagach do skryptu). Uporządkowano listę "Tematy do dalszego ustalenia" — usunięto pozycje już zaimplementowane. |
+| 0.8 | 2026-08-29 | Wprowadzenie wersjonowanego mechanizmu migracji schematu (`schema_migrations` + `src/lib/migrations.ts`, sekcja 9) zamiast ręcznych `PRAGMA table_info` + `ALTER TABLE` w `db.ts`. Dotychczasowe dwa dopasowania kolumn (`is_important`, `delivered_order_value`) przekształcone w migracje nr 1 i 2. |

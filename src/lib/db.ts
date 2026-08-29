@@ -3,6 +3,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import Database from "better-sqlite3";
 import { DATABASE_PATH, ADMIN_USERNAME, ADMIN_PASSWORD } from "astro:env/server";
+import { runMigrations } from "@/lib/migrations";
 
 export type Role = "admin" | "user";
 
@@ -236,18 +237,9 @@ db.exec(`
 `);
 
 // CREATE TABLE IF NOT EXISTS above is a no-op on a database that already has purchase_orders
-// from before is_important existed, so the column has to be retrofitted explicitly.
-const purchaseOrderColumns = db.prepare("PRAGMA table_info(purchase_orders)").all() as { name: string }[];
-if (!purchaseOrderColumns.some((c) => c.name === "is_important")) {
-  db.exec(
-    "ALTER TABLE purchase_orders ADD COLUMN is_important INTEGER CHECK (is_important IS NULL OR is_important IN (0, 1))",
-  );
-}
-if (!purchaseOrderColumns.some((c) => c.name === "delivered_order_value")) {
-  db.exec(
-    "ALTER TABLE purchase_orders ADD COLUMN delivered_order_value INTEGER CHECK (delivered_order_value IS NULL OR delivered_order_value >= 0)",
-  );
-}
+// from before a column existed, so column/constraint changes to existing tables are applied
+// via versioned migrations instead (src/lib/migrations.ts) — new tables/indexes don't need one.
+runMigrations(db);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS purchase_order_history (
