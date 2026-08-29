@@ -20,6 +20,9 @@ pnpm-debug.log*
 # local SQLite database
 data/
 
+# local deployment configs with secrets/other hostings' domains — not for this repo
+/Docker/
+
 # macOS-specific files
 .DS_Store
 
