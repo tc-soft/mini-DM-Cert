@@ -1,0 +1,58 @@
+---
+import { LayoutDashboard, ClipboardList, FileBarChart2, Users, Library, LogOut } from "lucide-react";
+import type { Role } from "@/lib/db";
+
+interface Props {
+  user: { username: string; role: Role };
+  currentPath: string;
+}
+
+const { user, currentPath } = Astro.props;
+
+const links = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/orders", label: "Zamówienia", icon: ClipboardList },
+  { href: "/reports", label: "Raport", icon: FileBarChart2 },
+  ...(user.role === "admin"
+    ? [
+        { href: "/admin/users", label: "Użytkownicy", icon: Users },
+        { href: "/admin/dictionaries", label: "Słowniki", icon: Library },
+      ]
+    : []),
+];
+
+const isActive = (href: string) => currentPath === href || currentPath.startsWith(`${href}/`);
+---
+
+<nav class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 backdrop-blur-xl">
+  <div class="flex flex-wrap items-center gap-1">
+    {
+      links.map(({ href, label, icon: Icon }) => (
+        <a
+          href={href}
+          class:list={[
+            "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
+            isActive(href)
+              ? "border-purple-400/40 bg-purple-600/30 text-white"
+              : "border-transparent text-blue-100/70 hover:bg-white/10 hover:text-white",
+          ]}
+        >
+          <Icon className="size-4" />
+          {label}
+        </a>
+      ))
+    }
+  </div>
+  <div class="flex items-center gap-3 text-sm">
+    <span class="text-blue-100/60">{user.username}</span>
+    <form method="POST" action="/api/auth/signout">
+      <button
+        type="submit"
+        class="flex items-center gap-1.5 rounded-lg border border-transparent px-3 py-2 text-blue-100/70 transition-colors hover:bg-white/10 hover:text-white"
+      >
+        <LogOut className="size-4" />
+        Wyloguj
+      </button>
+    </form>
+  </div>
+</nav>

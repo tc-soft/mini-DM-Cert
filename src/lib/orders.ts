@@ -31,6 +31,10 @@ const NEEDS_ATTENTION_SQL = `(
   OR (delivery_date IS NOT NULL AND test_results IS NULL)
 )`;
 
+const OVERDUE_PAYMENT_SQL = `(
+  payment_due_date IS NOT NULL AND payment_due_date < date('now') AND payment_date IS NULL
+)`;
+
 export type PurchaseOrderWithFlag = PurchaseOrderRow & { needs_attention: 0 | 1 };
 
 export interface OrderFilters {
@@ -41,6 +45,8 @@ export interface OrderFilters {
   etaFrom: string | null;
   etaTo: string | null;
   onlyAttention: boolean;
+  onlyBlocked: boolean;
+  onlyOverduePayment: boolean;
 }
 
 const emptyFilters: OrderFilters = {
@@ -51,6 +57,8 @@ const emptyFilters: OrderFilters = {
   etaFrom: null,
   etaTo: null,
   onlyAttention: false,
+  onlyBlocked: false,
+  onlyOverduePayment: false,
 };
 
 // Filters travel as URL query params and are never persisted server-side, so the view stays
@@ -73,9 +81,16 @@ export function listOrders(filters: Partial<OrderFilters> = {}): PurchaseOrderWi
          AND (@etaFrom IS NULL OR eta_destination_date >= @etaFrom)
          AND (@etaTo IS NULL OR eta_destination_date <= @etaTo)
          AND (@onlyAttention = 0 OR ${NEEDS_ATTENTION_SQL})
+         AND (@onlyBlocked = 0 OR is_blocked = 1)
+         AND (@onlyOverduePayment = 0 OR ${OVERDUE_PAYMENT_SQL})
        ORDER BY created_at DESC`,
     )
-    .all({ ...f, onlyAttention: f.onlyAttention ? 1 : 0 }) as PurchaseOrderWithFlag[];
+    .all({
+      ...f,
+      onlyAttention: f.onlyAttention ? 1 : 0,
+      onlyBlocked: f.onlyBlocked ? 1 : 0,
+      onlyOverduePayment: f.onlyOverduePayment ? 1 : 0,
+    }) as PurchaseOrderWithFlag[];
 }
 
 export interface OrderFilterOptions {
@@ -354,4 +369,35 @@ export function sumOrderValueByCurrency(filters: ReportFilters): CurrencyTotal[]
     )
     .all(filters) as CurrencyTotal[];
   return rows;
+}
+
+export interface DashboardStats {
+  needsAttentionCount: number;
+  blockedCount: number;
+  overduePaymentCount: number;
+  inProgressTotals: CurrencyTotal[];
+}
+
+// Deliberately just a handful of counters/sums linking into the existing filtered orders
+// list, not a full analytics view — PRD Non-Goals rules out "zaawansowana analityka BI".
+export function getDashboardStats(): DashboardStats {
+  const needsAttentionCount = (
+    db.prepare(`SELECT COUNT(*) AS c FROM purchase_orders WHERE ${NEEDS_ATTENTION_SQL}`).get() as { c: number }
+  ).c;
+  const blockedCount = (
+    db.prepare("SELECT COUNT(*) AS c FROM purchase_orders WHERE is_blocked = 1").get() as { c: number }
+  ).c;
+  const overduePaymentCount = (
+    db.prepare(`SELECT COUNT(*) AS c FROM purchase_orders WHERE ${OVERDUE_PAYMENT_SQL}`).get() as { c: number }
+  ).c;
+  const inProgressTotals = db
+    .prepare(
+      `SELECT currency_code AS currencyCode, SUM(order_value) AS total FROM purchase_orders
+       WHERE delivery_date IS NULL
+       GROUP BY currency_code
+       ORDER BY currency_code`,
+    )
+    .all() as CurrencyTotal[];
+
+  return { needsAttentionCount, blockedCount, overduePaymentCount, inProgressTotals };
 }
