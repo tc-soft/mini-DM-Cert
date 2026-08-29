@@ -3,8 +3,8 @@
 **Projekt:** baza zamówień  
 **Silnik bazy danych:** SQLite  
 **Środowisko aplikacji:** Node.js  
-**Wersja dokumentu:** 0.5  
-**Data:** 2026-08-27
+**Wersja dokumentu:** 0.7  
+**Data:** 2026-08-29
 
 ---
 
@@ -397,6 +397,8 @@ COMMIT;
 11. Pola finansowe są przechowywane jako liczby całkowite pomnożone przez `10000`.
 12. `order_value` jest wyliczane automatycznie przez aplikację jako `quantity_kg * port_price_per_kg`; pole jest tylko do odczytu w formularzu.
 13. `delivered_order_value` jest wyliczane automatycznie przez aplikację jako `quantity_kg * delivered_price_per_kg`, gdy `delivered_price_per_kg` jest znane, w przeciwnym razie pozostaje `NULL`; pole jest tylko do odczytu w formularzu i nie jest wymagane przy tworzeniu zamówienia.
+14. Mimo braku klucza obcego z `purchase_orders.currency_code` do `currencies` (patrz punkt 4), aplikacja przy zapisie wpisu waliduje, że podany kod waluty istnieje w tabeli `currencies` — odrzuca zapis, jeśli waluta nie jest w słowniku, nawet jeśli sam format (3 wielkie litery) jest poprawny.
+15. `order_number` i `batch_number` nie mają w bazie ograniczenia `UNIQUE`, ale aplikacja przy zapisie sprawdza, czy podana wartość nie jest już użyta w innym wpisie (z wyłączeniem samego edytowanego rekordu), i odrzuca zapis w razie duplikatu.
 
 ---
 
@@ -416,15 +418,13 @@ Flaga nie jest przechowywana jako osobna kolumna wynikowa — jest wyliczana w z
 
 W kolejnych wersjach dokumentacji należy doprecyzować między innymi:
 
-- czy `order_number` ma być polem unikalnym,
-- czy `batch_number` ma być polem unikalnym,
 - czy `container_number` ma podlegać walidacji zgodnej ze standardowym formatem numerów kontenerów,
-- wartości początkowe tabeli `currencies`,
-- sposób zarządzania listą towarów i dostawców w aplikacji,
-- zasady aktualizacji `updated_at` i `updated_by`,
-- ewentualną tabelę użytkowników,
-- finalną nazwę i lokalizację pliku bazy,
-- strategię migracji schematu bazy przy kolejnych wersjach aplikacji.
+- strategię migracji schematu bazy przy kolejnych wersjach aplikacji (obecnie `CREATE TABLE/INDEX IF NOT EXISTS` przy starcie, bez wersjonowanych migracji).
+
+Rozstrzygnięte od poprzedniej wersji dokumentu:
+
+- `order_number` i `batch_number` — unikalne w praktyce: aplikacja odrzuca zapis, jeśli podana wartość jest już użyta w innym wpisie (patrz punkt 15 w Uwagach do skryptu). Brak klucza unikalnego w samej bazie — celowo, żeby uniknąć błędu przy starcie na już istniejących danych z ewentualnymi duplikatami sprzed wprowadzenia tej reguły.
+- wartości początkowe tabeli `currencies`, sposób zarządzania listą towarów/dostawców, zasady `updated_at`/`updated_by`, tabela użytkowników, nazwa/lokalizacja pliku bazy — zaimplementowane (zarządzanie słownikami i użytkownikami w panelu administratora, `updated_at`/`updated_by` ustawiane przy edycji, baza w `data/mini-dm.db` konfigurowalna przez `DATABASE_PATH`).
 
 ---
 
@@ -437,3 +437,5 @@ W kolejnych wersjach dokumentacji należy doprecyzować między innymi:
 | 0.3 | 2026-08-24 | Zmiana modelu danych historycznych: wartości z tabel pomocniczych są kopiowane do `purchase_orders`; usunięto `product_id`, `supplier_id` i `currency_id` z tabeli zamówień. Potwierdzono autonumerowane pole `id` w tabeli głównej. |
 | 0.4 | 2026-08-25 | Dodanie kolumny `is_important` (ręczna flaga „ważne”) i reguły „wymaga uwagi” (FR-012), wyliczanej w zapytaniu na podstawie `is_important`, `eta_destination_date`, `delivery_date` i `test_results`. |
 | 0.5 | 2026-08-27 | Dodanie tabeli `purchase_order_history` (kto/kiedy edytował i które pola się zmieniły) realizującej FR-010. Historia obejmuje wyłącznie edycje, nie utworzenie wpisu. |
+| 0.6 | 2026-08-29 | Doprecyzowanie: aplikacja waliduje przy zapisie, że `currency_code` istnieje w słowniku `currencies` (mimo braku klucza obcego, patrz punkt 4/14 w Uwagach do skryptu). Rozważana walidacja "termin dostawy nie wcześniejszy niż data złożenia zamówienia" została świadomie odrzucona — `created_at` to znacznik utworzenia rekordu, nie biznesowa data złożenia zamówienia, więc taka reguła uniemożliwiałaby uzupełnianie zaległych wpisów historycznych. |
+| 0.7 | 2026-08-29 | Rozstrzygnięcie unikalności `order_number` i `batch_number`: aplikacja odrzuca zapis przy duplikacie (bez klucza `UNIQUE` w bazie, patrz punkt 15 w Uwagach do skryptu). Uporządkowano listę "Tematy do dalszego ustalenia" — usunięto pozycje już zaimplementowane. |

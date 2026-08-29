@@ -143,6 +143,23 @@ export function getOrderById(id: number): PurchaseOrderRow | undefined {
   return db.prepare("SELECT * FROM purchase_orders WHERE id = ?").get(id) as PurchaseOrderRow | undefined;
 }
 
+// No DB-level UNIQUE constraint on order_number/batch_number (would risk breaking on
+// startup against pre-existing historical duplicates in an already-deployed database),
+// so uniqueness is enforced here at write time instead, excluding the row being edited.
+export function isOrderNumberTaken(orderNumber: string, excludeId?: number): boolean {
+  const row = db
+    .prepare("SELECT id FROM purchase_orders WHERE order_number = @orderNumber AND id != @excludeId")
+    .get({ orderNumber, excludeId: excludeId ?? -1 });
+  return row !== undefined;
+}
+
+export function isBatchNumberTaken(batchNumber: string, excludeId?: number): boolean {
+  const row = db
+    .prepare("SELECT id FROM purchase_orders WHERE batch_number = @batchNumber AND id != @excludeId")
+    .get({ batchNumber, excludeId: excludeId ?? -1 });
+  return row !== undefined;
+}
+
 // product_name/supplier_name are picked from a combobox that also accepts free text (dictionary
 // management UI doesn't exist yet), so a new value is added to the dictionary as it's used.
 export function createOrder(input: NewOrderInput): void {

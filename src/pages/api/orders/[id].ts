@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { getOrderById, listCurrencies, updateOrder } from "@/lib/orders";
+import { getOrderById, isBatchNumberTaken, isOrderNumberTaken, listCurrencies, updateOrder } from "@/lib/orders";
 import { parseOrderForm, redirectToWithError } from "@/lib/orders-form";
 
 export const POST: APIRoute = async (context) => {
@@ -20,6 +20,12 @@ export const POST: APIRoute = async (context) => {
   });
   if (!result.ok) {
     return redirectToWithError(`/orders/${id}/edit`, result.error);
+  }
+  if (result.data.orderNumber && isOrderNumberTaken(result.data.orderNumber, id)) {
+    return redirectToWithError(`/orders/${id}/edit`, "Numer zamówienia jest już użyty w innym wpisie.");
+  }
+  if (result.data.batchNumber && isBatchNumberTaken(result.data.batchNumber, id)) {
+    return redirectToWithError(`/orders/${id}/edit`, "Numer partii jest już użyty w innym wpisie.");
   }
 
   try {
