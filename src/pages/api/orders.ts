@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { createOrder } from "@/lib/orders";
+import { createOrder, listCurrencies } from "@/lib/orders";
 import { parseOrderForm, redirectToWithError } from "@/lib/orders-form";
 
 export const POST: APIRoute = async (context) => {
@@ -9,7 +9,9 @@ export const POST: APIRoute = async (context) => {
   }
 
   const form = await context.request.formData();
-  const result = parseOrderForm(form);
+  const result = parseOrderForm(form, {
+    validCurrencyCodes: listCurrencies().map((c) => c.code),
+  });
   if (!result.ok) {
     return redirectToWithError("/orders/new", result.error);
   }

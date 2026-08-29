@@ -120,7 +120,7 @@ Aplikacja automatycznie oznacza wpis planowanego zakupu jako „wymagający uwag
 
 Reguła konsumuje dane wprowadzone przez użytkownika w formularzu wpisu: termin dostawy, status, informację o wynikach badań laboratoryjnych oraz opcjonalną ręczną flagę ważności. Jej wynikiem jest wizualne oznaczenie wpisu w widoku tabelarycznym, dzięki któremu użytkownik od razu widzi, które zakupy wymagają interwencji, bez przeszukiwania całej tabeli. Użytkownik napotyka tę regułę codziennie podczas przeglądania widoku tabelarycznego oraz podczas generowania raportu.
 
-Dodatkowo, przy zapisie każdego wpisu aplikacja odrzuca dane niespójne: termin dostawy nie może być wcześniejszy niż data złożenia zamówienia, a kwota musi mieć przypisaną dokładnie jedną walutę z listy słownikowej, bez mieszania walut w jednym polu.
+Dodatkowo, przy zapisie każdego wpisu aplikacja odrzuca dane niespójne: kwota musi mieć przypisaną dokładnie jedną walutę z listy słownikowej, bez mieszania walut w jednym polu. (Reguła "termin dostawy nie wcześniejszy niż data złożenia zamówienia" została świadomie pominięta — schemat przechowuje tylko systemowy znacznik utworzenia rekordu, nie osobną biznesową datę złożenia zamówienia, więc taka walidacja uniemożliwiałaby uzupełnianie zaległych wpisów historycznych.)
 
 ## Access Control
 

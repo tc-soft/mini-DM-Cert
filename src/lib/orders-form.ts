@@ -12,7 +12,11 @@ function optionalField(form: FormData, name: string): string | null {
 
 export type OrderFormParseResult = { ok: true; data: OrderInput } | { ok: false; error: string };
 
-export function parseOrderForm(form: FormData): OrderFormParseResult {
+export interface OrderFormContext {
+  validCurrencyCodes: string[];
+}
+
+export function parseOrderForm(form: FormData, context: OrderFormContext): OrderFormParseResult {
   const orderNumber = optionalField(form, "order_number");
   const productName = field(form, "product_name");
   const supplierName = field(form, "supplier_name");
@@ -58,6 +62,9 @@ export function parseOrderForm(form: FormData): OrderFormParseResult {
 
   if (currencyCode.length !== 3) {
     return { ok: false, error: "Wybierz walutę." };
+  }
+  if (!context.validCurrencyCodes.includes(currencyCode)) {
+    return { ok: false, error: "Wybrana waluta nie istnieje w słowniku walut." };
   }
   if (containerNumber && containerNumber.length > 50) {
     return { ok: false, error: "Numer kontenera może mieć maksymalnie 50 znaków." };
