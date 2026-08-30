@@ -29,7 +29,9 @@ test.describe("reports (FR-009)", () => {
 
     // quantity(10) * price(100) = 1000.00 EUR — regex "." tolerates the locale's
     // thousands-separator character (may be a non-breaking space) between "1" and "000,00".
-    const totalsText = await page.locator("div.mb-4.flex.flex-wrap.gap-3").first().innerText();
-    expect(totalsText).toMatch(/1.000,00\s*EUR/);
+    // toContainText (not a manual innerText + toMatch) auto-retries and gives a clean
+    // expected-vs-received diff if this doesn't match.
+    const totalsTile = page.locator("div.mb-4.flex.flex-wrap.gap-3").first();
+    await expect(totalsTile).toContainText(/1.000,00.*EUR/);
   });
 });

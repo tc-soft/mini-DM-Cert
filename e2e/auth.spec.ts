@@ -20,6 +20,8 @@ test.describe("sign in (FR-001)", () => {
     await page.getByRole("button", { name: "Sign in" }).click();
 
     await expect(page).toHaveURL(/\/auth\/signin/);
-    await expect(page.getByText(/invalid username or password/i)).toBeVisible();
+    // Scoped to the actual error banner (ServerError.tsx renders it as p.text-red-300): a plain
+    // getByText also matches Astro's dev-mode toolbar, which shows the page's props as debug JSON.
+    await expect(page.locator("p.text-red-300")).toContainText(/invalid username or password/i);
   });
 });
