@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
 import { E2E_ADMIN_PASSWORD, E2E_ADMIN_USERNAME } from "../playwright.config";
+import { expect, test } from "./helpers";
 
 test.describe("sign in (FR-001)", () => {
   test("valid credentials redirect to the dashboard", async ({ page }) => {

@@ -1,6 +1,5 @@
-import { expect, test } from "@playwright/test";
 import { E2E_ADMIN_PASSWORD, E2E_ADMIN_USERNAME } from "../playwright.config";
-import { signIn } from "./helpers";
+import { expect, signIn, test } from "./helpers";
 
 test.describe("orders", () => {
   test.beforeEach(async ({ page }) => {

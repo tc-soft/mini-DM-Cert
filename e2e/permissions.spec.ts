@@ -1,6 +1,5 @@
-import { expect, test } from "@playwright/test";
 import { E2E_ADMIN_PASSWORD, E2E_ADMIN_USERNAME } from "../playwright.config";
-import { signIn } from "./helpers";
+import { expect, signIn, test } from "./helpers";
 
 test.describe("permission split: admin vs regular user", () => {
   test("a regular user can manage dictionaries but not user accounts or delete orders", async ({ page }) => {
