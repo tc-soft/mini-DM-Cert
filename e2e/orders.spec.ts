@@ -22,7 +22,9 @@ test.describe("orders", () => {
     await page.getByRole("button", { name: "Zapisz zamówienie" }).click();
 
     await expect(page).toHaveURL(/\/orders$/);
-    await expect(page.getByText(uniqueProduct, { exact: true })).toBeVisible();
+    // Scoped to the table body: the product name also now appears as an <option> in the
+    // "Towar" filter <select>, which would otherwise make this locator ambiguous.
+    await expect(page.locator("tbody").getByText(uniqueProduct, { exact: true })).toBeVisible();
 
     // FR-005: search narrows the table down to the matching row.
     await page.locator("#q").fill(uniqueProduct);
