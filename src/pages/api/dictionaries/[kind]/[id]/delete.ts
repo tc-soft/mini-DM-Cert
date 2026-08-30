@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import { deleteDictionaryEntry, isDictionaryKind } from "@/lib/dictionaries";
 
-export const POST: APIRoute = async (context) => {
+export const POST: APIRoute = (context) => {
   const user = context.locals.user;
   if (!user) {
     return context.redirect("/auth/signin");

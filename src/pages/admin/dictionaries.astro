@@ -41,7 +41,11 @@ const sections = kinds.map((kind) => ({
               <ul class="mb-4 space-y-2">
                 {section.entries.map((entry) => (
                   <li class="flex items-center gap-2">
-                    <form method="POST" action={`/api/dictionaries/${section.kind}/${entry.id}`} class="flex flex-1 gap-2">
+                    <form
+                      method="POST"
+                      action={`/api/dictionaries/${section.kind}/${entry.id}`}
+                      class="flex flex-1 gap-2"
+                    >
                       <input
                         name="value"
                         value={entry.value}
@@ -69,7 +73,11 @@ const sections = kinds.map((kind) => ({
                 {section.entries.length === 0 && <li class="text-sm text-blue-100/50">Brak pozycji.</li>}
               </ul>
 
-              <form method="POST" action={`/api/dictionaries/${section.kind}`} class="flex gap-2 border-t border-white/10 pt-3">
+              <form
+                method="POST"
+                action={`/api/dictionaries/${section.kind}`}
+                class="flex gap-2 border-t border-white/10 pt-3"
+              >
                 <input
                   name="value"
                   placeholder="Nowa pozycja…"

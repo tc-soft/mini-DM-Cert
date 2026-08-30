@@ -249,7 +249,7 @@ if (!user) {
                         <a href={`/orders/${o.id}/edit`} class="text-blue-200 hover:text-white">
                           Edytuj
                         </a>
-                        {user?.role === "admin" && (
+                        {user.role === "admin" && (
                           <form
                             method="POST"
                             action={`/api/orders/${o.id}/delete`}

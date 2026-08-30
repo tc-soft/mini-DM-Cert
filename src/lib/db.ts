@@ -70,7 +70,7 @@ export interface PurchaseOrderHistoryRow {
   changes: string;
 }
 
-const dbPath = resolve(DATABASE_PATH || "./data/mini-dm.db");
+const dbPath = resolve(DATABASE_PATH ?? "./data/mini-dm.db");
 mkdirSync(dirname(dbPath), { recursive: true });
 
 export const db = new Database(dbPath);
@@ -283,8 +283,8 @@ function seedDefaultAdmin() {
   const { count } = db.prepare("SELECT COUNT(*) AS count FROM users").get() as { count: number };
   if (count > 0) return;
 
-  const username = ADMIN_USERNAME || "admin";
-  const password = ADMIN_PASSWORD || randomBytes(9).toString("base64url");
+  const username = ADMIN_USERNAME ?? "admin";
+  const password = ADMIN_PASSWORD ?? randomBytes(9).toString("base64url");
 
   db.prepare("INSERT INTO users (username, password_hash, role) VALUES (?, ?, 'admin')").run(
     username,

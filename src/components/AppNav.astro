@@ -20,7 +20,9 @@ const links = [
 const isActive = (href: string) => currentPath === href || currentPath.startsWith(`${href}/`);
 ---
 
-<nav class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 backdrop-blur-xl">
+<nav
+  class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 backdrop-blur-xl"
+>
   <div class="flex flex-wrap items-center gap-1">
     {
       links.map(({ href, label, icon: Icon }) => (

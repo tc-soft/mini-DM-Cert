@@ -233,8 +233,8 @@ const HISTORY_FIELDS: { column: keyof PurchaseOrderRow; label: string; format: H
   { column: "notes", label: "Uwagi", format: "text" },
 ];
 
-function formatHistoryValue(value: unknown, format: HistoryFormat): string {
-  if (value === null || value === undefined || value === "") return "—";
+function formatHistoryValue(value: PurchaseOrderRow[keyof PurchaseOrderRow], format: HistoryFormat): string {
+  if (value === null || value === "") return "—";
   if (format === "money") return formatMoney(value as number);
   if (format === "bool") return value === 1 ? "Tak" : "Nie";
   return String(value);

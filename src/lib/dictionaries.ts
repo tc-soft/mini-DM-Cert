@@ -23,8 +23,7 @@ const DICTIONARIES: Record<DictionaryKind, DictionaryConfig> = {
     column: "name",
     label: "Towary",
     normalize: (raw) => raw.trim(),
-    validate: (value) =>
-      value.length < 1 || value.length > 100 ? "Nazwa towaru musi mieć od 1 do 100 znaków." : null,
+    validate: (value) => (value.length < 1 || value.length > 100 ? "Nazwa towaru musi mieć od 1 do 100 znaków." : null),
   },
   suppliers: {
     table: "suppliers",

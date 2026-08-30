@@ -2,7 +2,7 @@ import type { APIRoute } from "astro";
 import { deleteUser } from "@/lib/users";
 import { redirectToWithError } from "@/lib/orders-form";
 
-export const POST: APIRoute = async (context) => {
+export const POST: APIRoute = (context) => {
   const user = context.locals.user;
   if (!user) {
     return context.redirect("/auth/signin");
