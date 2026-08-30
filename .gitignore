@@ -31,3 +31,9 @@ data/
 
 # local Claude Code permission overrides
 .claude/settings.local.json
+
+# Local development / AI tools
+.claude/
+.husky/
+.vscode/
+.agents/skill/
