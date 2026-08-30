@@ -28,6 +28,10 @@ export default defineConfig({
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    // Piped (not the Playwright default, which swallows this) so a dev-server crash mid-run
+    // shows up in the CI log instead of manifesting only as mysterious downstream timeouts.
+    stdout: "pipe",
+    stderr: "pipe",
     env: {
       DATABASE_PATH: join(dir, "e2e.db"),
       ADMIN_USERNAME: E2E_ADMIN_USERNAME,
