@@ -30,12 +30,15 @@ Główna persona: pracownik działu zaangażowanego w planowanie zakupów (np. z
 ## Success Criteria
 
 ### Primary
+
 - Użytkownik może zalogować się, dodać nowy planowany zakup przez formularz, zobaczyć go w widoku tabelarycznym oraz wygenerować raport dla zadanego zakresu dat pokazujący listę wpisów i osobną sumę wartości dla każdej waluty występującej we wpisach.
 
 ### Secondary
+
 - Historia zmian wpisu (kto i kiedy edytował dany wpis).
 
 ### Guardrails
+
 - Wielu użytkowników może jednocześnie pracować na danych bez psucia widoku innym (przypadkowe ukrycie kolumn, zmiana filtrów, przeformatowanie przez jednego użytkownika nie wpływa na innych).
 - Walidacja formatu danych (daty, kwoty, waluty) jest zawsze wymuszona przez formularz — nie da się wpisać dowolnego tekstu w te pola.
 - Żadne dane nie znikają przypadkowo — usuwanie wpisów jest ograniczone do roli Administratora.
@@ -49,6 +52,7 @@ Główna persona: pracownik działu zaangażowanego w planowanie zakupów (np. z
 - **Then** wpis pojawia się w widoku tabelarycznym widocznym dla wszystkich użytkowników, a przy generowaniu raportu dla zakresu dat obejmującego ten wpis raport pokazuje go na liście oraz uwzględnia jego wartość w sumie dla jego waluty
 
 #### Acceptance Criteria
+
 - Pola daty, kwoty i waluty są walidowane przez formularz — nie da się zapisać nieprawidłowego formatu
 - Inny zalogowany użytkownik widzi nowy wpis w swoim widoku tabelarycznym bez odświeżania całej aplikacji od zera
 - Raport sumuje wartości osobno dla każdej waluty występującej we wpisach — bez mieszania walut w jednej sumie
@@ -56,6 +60,7 @@ Główna persona: pracownik działu zaangażowanego w planowanie zakupów (np. z
 ## Functional Requirements
 
 ### Uwierzytelnianie i uprawnienia
+
 - FR-001: Użytkownik może zalogować się do aplikacji za pomocą konta lokalnego. Priorytet: musi być
   > Sokrates: Rozważono kontrargument: "lokalne konta wymagają ręcznego zarządzania hasłami/resetami — czy to nie za duży narzut dla małej grupy?" Rozwiązanie: zachowano bez zmian; narzut akceptowalny, bo grupa użytkowników jest mała i stała.
 - FR-006: Administrator może usuwać wpisy. Priorytet: musi być
@@ -64,6 +69,7 @@ Główna persona: pracownik działu zaangażowanego w planowanie zakupów (np. z
   > Sokrates: Rozważono kontrargument: "grupa jest mała i stała — może wystarczyłoby zarządzanie kontami bezpośrednio w bazie?" Rozwiązanie: zachowano bez zmian; bez UI do zarządzania kontami administrator musiałby ręcznie manipulować bazą przy każdej zmianie kadrowej.
 
 ### Zarządzanie wpisami planowanych zakupów
+
 - FR-002: Użytkownik może dodać nowy wpis planowanego zakupu przez formularz. Priorytet: musi być
   > Sokrates: Rozważono kontrargument: "formularz jest wolniejszy niż wklejenie wiersza w Excelu — czy to nie spowolni pracy?" Rozwiązanie: zachowano bez zmian; spowolnienie akceptowalne w zamian za kontrolę nad jakością danych.
 - FR-003: Użytkownik może edytować istniejący wpis przez formularz. Priorytet: musi być
@@ -82,8 +88,30 @@ Główna persona: pracownik działu zaangażowanego w planowanie zakupów (np. z
 - FR-012: Użytkownik może ręcznie oznaczyć wpis jako wymagający uwagi/ważny. Priorytet: musi być
 
 ### Raportowanie
+
 - FR-009: Użytkownik może wygenerować raport planowanych zakupów dla zadanego zakresu dat, pokazujący listę wpisów oraz osobną sumę wartości dla każdej waluty występującej we wpisach (nie tylko EUR/USD). Priorytet: musi być
   > Sokrates: Rozważono kontrargument: "czy podział tylko na EUR/USD wystarczy, skoro w przyszłości mogą pojawić się inne waluty?" Rozwiązanie zaktualizowane w Fazie 6: lista walut jest otwarta i zarządzana zgodnie z FR-011; raport sumuje osobno każdą walutę użytą we wpisach, a nie tylko EUR i USD.
+
+## Pokrycie testami
+
+Testy automatyczne dodane 2026-08-30 (Vitest — `tests/lib/`, Playwright E2E — `e2e/`; patrz `CLAUDE.md` sekcja Testing). Pokrycie per FR:
+
+| FR                                     | Pokrycie                                                                                                                                                                                                                       |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| FR-001 (logowanie)                     | E2E `auth.spec.ts` (poprawne i błędne dane logowania) + Vitest `auth.test.ts` (`signIn`/`getSessionUser`/`signOut`)                                                                                                            |
+| FR-002 (dodanie wpisu)                 | E2E `orders.spec.ts` (tworzenie przez formularz) + Vitest `orders-form.test.ts`, `orders.test.ts` (`createOrder`)                                                                                                              |
+| FR-003 (edycja wpisu)                  | E2E `orders.spec.ts` (edycja przez formularz) + Vitest `orders.test.ts` (`updateOrder`)                                                                                                                                        |
+| FR-004 (widok tabelaryczny)            | E2E `orders.spec.ts` (nowy wpis widoczny w tabeli po zapisie)                                                                                                                                                                  |
+| FR-005 (filtrowanie/wyszukiwanie)      | Vitest `orders.test.ts` (filtry `q`, `onlyBlocked`, `onlyOverduePayment`) + E2E `orders.spec.ts` (wyszukiwanie zawęża tabelę)                                                                                                  |
+| FR-006 (usuwanie przez Administratora) | Vitest `orders.test.ts` (`deleteOrder`); E2E tylko negatywnie — `permissions.spec.ts` sprawdza brak przycisku „Usuń” dla zwykłego użytkownika. **Brak E2E na pozytywną ścieżkę usuwania przez admina.**                        |
+| FR-007 (zarządzanie kontami)           | Vitest `users.test.ts` (`createUser`/`updateUserRole`/`deleteUser`/`resetPassword`, guardrail ostatniego admina) + E2E częściowo — `permissions.spec.ts` tworzy konto, nie testuje zmiany roli/resetu hasła/usunięcia przez UI |
+| FR-008 (wartości słownikowe z list)    | Vitest `orders-form.test.ts` (walidacja waluty względem słownika), `dictionaries.test.ts` (CRUD słowników)                                                                                                                     |
+| FR-009 (raport per waluta)             | Vitest `orders.test.ts` (`sumOrderValueByCurrency`, `listOrdersForReport`) + E2E `reports.spec.ts` (pełny przepływ przez UI)                                                                                                   |
+| FR-010 (historia zmian)                | Vitest `orders.test.ts` (diffing historii — tylko zmienione pola) + E2E `orders.spec.ts` (wpis w historii widoczny w UI)                                                                                                       |
+| FR-011 (zarządzanie słownikami)        | Vitest `dictionaries.test.ts` (CRUD) + E2E `permissions.spec.ts` (dostęp zwykłego użytkownika do `/admin/dictionaries`)                                                                                                        |
+| FR-012 (ręczna flaga „wymaga uwagi”)   | Vitest `orders.test.ts` (wyprowadzenie `needs_attention`, w tym ręczne oznaczenie). **Brak E2E.**                                                                                                                              |
+
+**Znane luki:** FR-006 i FR-012 nie mają testu E2E na pozytywną ścieżkę (odpowiednio: admin faktycznie usuwa wpis; użytkownik zaznacza checkbox „ważne” i widzi flagę w tabeli/raporcie). FR-007 ma tylko częściowe pokrycie E2E (samo tworzenie konta). Logika biznesowa dla wszystkich trzech jest pokryta na poziomie Vitest.
 
 ## Non-Functional Requirements
 
