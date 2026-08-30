@@ -72,6 +72,13 @@ const nodeScriptsConfig = tseslint.config({
 const astroConfig = tseslint.config({
   files: ["**/*.astro"],
   rules: {
+    // astro-eslint-parser@1.x doesn't support typescript-eslint's `projectService` and
+    // silently falls back to `project: true`, which leaves return-statement nodes in
+    // frontmatter without a parent reference. no-misused-promises' checksVoidReturn.returns
+    // check dereferences that parent and crashes the whole lint run. Disabling just the
+    // `returns` check for .astro files avoids the crash; re-enable once astro-eslint-parser
+    // (or a projectService-compatible major bump) fixes parent tracking.
+    "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false, returns: false } }],
     "astro/no-set-html-directive": "error",
     "astro/no-unused-css-selector": "warn",
     "astro/prefer-class-list-directive": "warn",
