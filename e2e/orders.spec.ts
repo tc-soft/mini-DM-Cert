@@ -1,5 +1,5 @@
 import { E2E_ADMIN_PASSWORD, E2E_ADMIN_USERNAME } from "../playwright.config";
-import { expect, signIn, test } from "./helpers";
+import { expect, signIn, test, waitForHydration } from "./helpers";
 
 test.describe("orders", () => {
   test.beforeEach(async ({ page }) => {
@@ -13,6 +13,7 @@ test.describe("orders", () => {
     const changedProduct = `${uniqueProduct} zmieniony`;
 
     await page.goto("/orders/new");
+    await waitForHydration(page);
     await page.locator("#supplier_name").fill("E2E Dostawca");
     await page.locator("#product_name").fill(uniqueProduct);
     await page.locator("#quantity_kg").fill("100");
@@ -32,6 +33,7 @@ test.describe("orders", () => {
     // FR-003: edit through the form.
     await row.getByRole("link", { name: "Edytuj" }).click();
     await expect(page).toHaveURL(/\/orders\/\d+\/edit/);
+    await waitForHydration(page);
     await page.locator("#product_name").fill(changedProduct);
     await page.getByRole("button", { name: "Zapisz zmiany" }).click();
 

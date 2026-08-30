@@ -28,8 +28,18 @@ export const test = base.extend<object>({
 
 export { expect };
 
+// Forms like SignInForm/OrderForm are React islands (`client:load`) with client-side validation.
+// If Playwright fills the inputs before hydration finishes, React's initial (empty) state
+// overwrites what was typed, and the newly-attached submit handler silently rejects the now-empty
+// fields — no console error, no crash, just no request. Wait for hydration's own network activity
+// (the client JS bundle) to settle before interacting with any such form.
+export async function waitForHydration(page: Page): Promise<void> {
+  await page.waitForLoadState("networkidle");
+}
+
 export async function signIn(page: Page, username: string, password: string): Promise<void> {
   await page.goto("/auth/signin");
+  await waitForHydration(page);
   await page.locator("#username").fill(username);
   await page.locator("#password").fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();

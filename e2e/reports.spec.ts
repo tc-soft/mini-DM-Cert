@@ -1,5 +1,5 @@
 import { E2E_ADMIN_PASSWORD, E2E_ADMIN_USERNAME } from "../playwright.config";
-import { expect, signIn, test } from "./helpers";
+import { expect, signIn, test, waitForHydration } from "./helpers";
 
 test.describe("reports (FR-009)", () => {
   test.beforeEach(async ({ page }) => {
@@ -13,6 +13,7 @@ test.describe("reports (FR-009)", () => {
     const today = new Date().toISOString().slice(0, 10);
 
     await page.goto("/orders/new");
+    await waitForHydration(page);
     await page.locator("#supplier_name").fill("E2E Dostawca");
     await page.locator("#product_name").fill(uniqueProduct);
     await page.locator("#quantity_kg").fill("10");
