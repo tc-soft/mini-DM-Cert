@@ -27,11 +27,10 @@ test.describe("reports (FR-009)", () => {
 
     await expect(page.locator("tbody", { hasText: uniqueProduct })).toBeVisible();
 
-    // quantity(10) * price(100) = 1000.00 EUR — regex "." tolerates the locale's
-    // thousands-separator character (may be a non-breaking space) between "1" and "000,00".
-    // toContainText (not a manual innerText + toMatch) auto-retries and gives a clean
-    // expected-vs-received diff if this doesn't match.
+    // quantity(10) * price(100) = 1000.00 EUR. Confirmed via a real CI failure that this
+    // Node/ICU build's pl-PL thousands separator for a 4-digit number is empty ("1000,00"),
+    // not a plain or non-breaking space, so `\s?` covers zero-or-one separator character.
     const totalsTile = page.locator("div.mb-4.flex.flex-wrap.gap-3").first();
-    await expect(totalsTile).toContainText(/1.000,00.*EUR/);
+    await expect(totalsTile).toContainText(/1\s?000,00.*EUR/);
   });
 });
