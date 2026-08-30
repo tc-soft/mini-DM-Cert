@@ -37,3 +37,7 @@ data/
 .husky/
 .vscode/
 .agents/skills/
+skills-lock.json
+
+# leftover from bootstrapper's *.scaffold conflict-resolution sibling files
+*.scaffold
