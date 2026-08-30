@@ -36,4 +36,4 @@ data/
 .claude/
 .husky/
 .vscode/
-.agents/skill/
+.agents/skills/
