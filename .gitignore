@@ -41,3 +41,8 @@ skills-lock.json
 
 # leftover from bootstrapper's *.scaffold conflict-resolution sibling files
 *.scaffold
+
+# Playwright E2E artifacts
+/test-results/
+/playwright-report/
+/blob-report/
