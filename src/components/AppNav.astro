@@ -13,12 +13,8 @@ const links = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/orders", label: "Zamówienia", icon: ClipboardList },
   { href: "/reports", label: "Raport", icon: FileBarChart2 },
-  ...(user.role === "admin"
-    ? [
-        { href: "/admin/users", label: "Użytkownicy", icon: Users },
-        { href: "/admin/dictionaries", label: "Słowniki", icon: Library },
-      ]
-    : []),
+  { href: "/admin/dictionaries", label: "Słowniki", icon: Library },
+  ...(user.role === "admin" ? [{ href: "/admin/users", label: "Użytkownicy", icon: Users }] : []),
 ];
 
 const isActive = (href: string) => currentPath === href || currentPath.startsWith(`${href}/`);

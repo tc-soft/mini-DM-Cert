@@ -5,7 +5,7 @@ import { ServerError } from "@/components/auth/ServerError";
 import { listDictionaryEntries, dictionaryLabel, type DictionaryKind } from "@/lib/dictionaries";
 
 const { user } = Astro.locals;
-if (!user || user.role !== "admin") {
+if (!user) {
   return Astro.redirect("/orders");
 }
 

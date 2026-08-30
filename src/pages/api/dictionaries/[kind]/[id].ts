@@ -7,9 +7,6 @@ export const POST: APIRoute = async (context) => {
   if (!user) {
     return context.redirect("/auth/signin");
   }
-  if (user.role !== "admin") {
-    return new Response("Forbidden", { status: 403 });
-  }
 
   const kind = context.params.kind;
   const id = Number(context.params.id);

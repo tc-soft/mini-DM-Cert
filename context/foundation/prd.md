@@ -77,12 +77,13 @@ Główna persona: pracownik działu zaangażowanego w planowanie zakupów (np. z
   > Świadome odstępstwo (2026-08-29): `waluta` jest ścisłym select-em walidowanym przy zapisie względem słownika (patrz `currencies`). `dostawca` i `towar` są polami tekstowymi z podpowiedziami (`<datalist>`), nie ścisłym select-em — nowa wartość jest automatycznie dodawana do słownika przy użyciu, żeby nie blokować pracy przy pierwszym wystąpieniu nowego dostawcy/towaru. Zaakceptowane jako celowy kompromis, nie planowana zmiana na ścisły select.
 - FR-010: Użytkownik może zobaczyć historię zmian wpisu (kto i kiedy edytował). Priorytet: miły dodatek
   > Sokrates: Rozważono kontrargument: "to nice-to-have — może lepiej usunąć całkowicie zamiast trzymać jako cel drugorzędny?" Rozwiązanie: zachowano jako miły dodatek; przydatne przy pracy wieloosobowej, ale nie krytyczne dla MVP.
-- FR-011: Administrator może dodawać i edytować wartości słownikowe (dostawcy, statusy, waluty, typy towarów) używane w listach rozwijalnych. Priorytet: musi być
+- FR-011: Użytkownik może dodawać, edytować i usuwać wartości słownikowe (dostawcy, statusy, waluty, typy towarów) używane w listach rozwijalnych. Priorytet: musi być
+  > Decyzja (2026-08-30): pierwotnie zarezerwowane dla Administratora; przy doprecyzowywaniu podziału uprawnień (patrz Open Questions) użytkownik zdecydował otworzyć zarządzanie słownikami dla wszystkich zalogowanych — zarządzanie kontami użytkowników (FR-007) i usuwanie wpisów zamówień (FR-006) pozostają zarezerwowane wyłącznie dla Administratora.
 - FR-012: Użytkownik może ręcznie oznaczyć wpis jako wymagający uwagi/ważny. Priorytet: musi być
 
 ### Raportowanie
 - FR-009: Użytkownik może wygenerować raport planowanych zakupów dla zadanego zakresu dat, pokazujący listę wpisów oraz osobną sumę wartości dla każdej waluty występującej we wpisach (nie tylko EUR/USD). Priorytet: musi być
-  > Sokrates: Rozważono kontrargument: "czy podział tylko na EUR/USD wystarczy, skoro w przyszłości mogą pojawić się inne waluty?" Rozwiązanie zaktualizowane w Fazie 6: lista walut jest otwarta i zarządzana przez Administratora (FR-011); raport sumuje osobno każdą walutę użytą we wpisach, a nie tylko EUR i USD.
+  > Sokrates: Rozważono kontrargument: "czy podział tylko na EUR/USD wystarczy, skoro w przyszłości mogą pojawić się inne waluty?" Rozwiązanie zaktualizowane w Fazie 6: lista walut jest otwarta i zarządzana zgodnie z FR-011; raport sumuje osobno każdą walutę użytą we wpisach, a nie tylko EUR i USD.
 
 ## Non-Functional Requirements
 
@@ -102,10 +103,8 @@ Dodatkowo, przy zapisie każdego wpisu aplikacja odrzuca dane niespójne: kwota 
 
 Lokalne konta użytkowników (login + hasło), aplikacja działa wewnątrz firmy na lokalnym serwerze. Dwie role:
 
-- **Administrator** — zarządza kontami użytkowników, może usuwać wpisy.
-- **Użytkownik** — może dodawać i edytować wpisy planowanych zakupów.
-
-Szczegółowy zakres uprawnień w ramach tych ról może zostać doprecyzowany później (patrz Open Questions).
+- **Administrator** — ma dostęp do wszystkiego, w tym wyłącznie on zarządza kontami użytkowników (FR-007) i może usuwać wpisy (FR-006).
+- **Użytkownik** — może dodawać i edytować wpisy planowanych zakupów oraz zarządzać wartościami słownikowymi (FR-011); nie ma dostępu do zarządzania kontami użytkowników i nie może usuwać wpisów.
 
 ## Non-Goals
 
@@ -121,4 +120,4 @@ Szczegółowy zakres uprawnień w ramach tych ról może zostać doprecyzowany p
 
 ## Open Questions
 
-1. **Jaki jest dokładny podział uprawnień w ramach ról Administrator i Użytkownik poza tym, co już ustalono (usuwanie = tylko Administrator, dodawanie/edycja = obie role)?** — Owner: użytkownik. Block: nie (role bazowe są już zdefiniowane, to doprecyzowanie szczegółów).
+Brak otwartych pytań. Jedyne pytanie (dokładny podział uprawnień Administrator/Użytkownik) rozstrzygnięto 2026-08-30 — patrz FR-011 i sekcja Access Control.
