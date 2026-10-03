@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 
-export type DictionaryKind = "products" | "suppliers" | "currencies";
+export type DictionaryKind = "products" | "suppliers" | "warehouses" | "currencies";
 
 export interface DictionaryEntry {
   id: number;
@@ -8,7 +8,7 @@ export interface DictionaryEntry {
 }
 
 interface DictionaryConfig {
-  table: "products" | "suppliers" | "currencies";
+  table: "products" | "suppliers" | "warehouses" | "currencies";
   column: "name" | "code";
   label: string;
   normalize: (raw: string) => string;
@@ -33,6 +33,14 @@ const DICTIONARIES: Record<DictionaryKind, DictionaryConfig> = {
     validate: (value) =>
       value.length < 1 || value.length > 100 ? "Nazwa dostawcy musi mieć od 1 do 100 znaków." : null,
   },
+  warehouses: {
+    table: "warehouses",
+    column: "name",
+    label: "Magazyny",
+    normalize: (raw) => raw.trim(),
+    validate: (value) =>
+      value.length < 1 || value.length > 100 ? "Nazwa magazynu musi mieć od 1 do 100 znaków." : null,
+  },
   currencies: {
     table: "currencies",
     column: "code",
@@ -43,7 +51,7 @@ const DICTIONARIES: Record<DictionaryKind, DictionaryConfig> = {
 };
 
 export function isDictionaryKind(value: string): value is DictionaryKind {
-  return value === "products" || value === "suppliers" || value === "currencies";
+  return value === "products" || value === "suppliers" || value === "warehouses" || value === "currencies";
 }
 
 export function dictionaryLabel(kind: DictionaryKind): string {

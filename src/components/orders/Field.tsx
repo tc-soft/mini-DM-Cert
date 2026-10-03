@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { CircleAlert } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface FieldProps {
   id: string;
@@ -21,14 +22,20 @@ export function Field({ id, label, required, error, hint, children }: FieldProps
         {required ? <span className="text-purple-300"> *</span> : null}
       </label>
       {children}
-      {error ? (
-        <p className="mt-1 flex items-center gap-1 text-xs text-red-300">
-          <CircleAlert className="size-3" />
-          {error}
-        </p>
-      ) : hint ? (
-        <p className="mt-1 text-xs text-blue-100/40">{hint}</p>
-      ) : null}
+      {/* Fixed-height slot, always rendered, so a field's error appearing doesn't shift
+          the rest of the form — the space is reserved whether or not there's a message. */}
+      <p
+        className={cn("mt-1 flex min-h-[1rem] items-center gap-1 text-xs", error ? "text-red-300" : "text-blue-100/40")}
+      >
+        {error ? (
+          <>
+            <CircleAlert className="size-3 shrink-0" />
+            {error}
+          </>
+        ) : (
+          (hint ?? " ")
+        )}
+      </p>
     </div>
   );
 }

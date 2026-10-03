@@ -10,13 +10,14 @@ import {
 } from "@/lib/dictionaries";
 
 beforeEach(() => {
-  db.exec("DELETE FROM products; DELETE FROM suppliers; DELETE FROM currencies;");
+  db.exec("DELETE FROM products; DELETE FROM suppliers; DELETE FROM warehouses; DELETE FROM currencies;");
 });
 
 describe("isDictionaryKind", () => {
-  it("accepts the three known kinds and rejects anything else", () => {
+  it("accepts the four known kinds and rejects anything else", () => {
     expect(isDictionaryKind("products")).toBe(true);
     expect(isDictionaryKind("suppliers")).toBe(true);
+    expect(isDictionaryKind("warehouses")).toBe(true);
     expect(isDictionaryKind("currencies")).toBe(true);
     expect(isDictionaryKind("statuses")).toBe(false);
   });
@@ -25,6 +26,7 @@ describe("isDictionaryKind", () => {
 describe("dictionaryLabel", () => {
   it("returns a human label for each kind", () => {
     expect(dictionaryLabel("products")).toBe("Towary");
+    expect(dictionaryLabel("warehouses")).toBe("Magazyny");
     expect(dictionaryLabel("currencies")).toBe("Waluty");
   });
 });
@@ -55,6 +57,20 @@ describe("products/suppliers dictionaries", () => {
   it("rejects an empty or over-length value", () => {
     expect(createDictionaryEntry("suppliers", "").ok).toBe(false);
     expect(createDictionaryEntry("suppliers", "x".repeat(101)).ok).toBe(false);
+  });
+});
+
+describe("warehouses dictionary", () => {
+  it("creates, lists and deletes an entry", () => {
+    const created = createDictionaryEntry("warehouses", "  Magazyn Północ  ");
+    expect(created.ok).toBe(true);
+
+    const entries = listDictionaryEntries("warehouses");
+    expect(entries).toHaveLength(1);
+    expect(entries[0].value).toBe("Magazyn Północ");
+
+    deleteDictionaryEntry("warehouses", entries[0].id);
+    expect(listDictionaryEntries("warehouses")).toHaveLength(0);
   });
 });
 

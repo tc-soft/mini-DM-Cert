@@ -3,8 +3,8 @@
 **Projekt:** baza zamówień  
 **Silnik bazy danych:** SQLite  
 **Środowisko aplikacji:** Node.js  
-**Wersja dokumentu:** 0.8  
-**Data:** 2026-08-29
+**Wersja dokumentu:** 0.9  
+**Data:** 2026-10-03
 
 ---
 
@@ -33,7 +33,7 @@ Przyjęte zasady:
 
 > Docelowa nazwa tabeli: `purchase_orders`
 
-Tabela `purchase_orders` przechowuje pełny historyczny stan danych zamówienia. Dane wybierane z tabel pomocniczych (`products`, `suppliers`, `currencies`) są kopiowane do rekordu zamówienia jako wartości tekstowe.
+Tabela `purchase_orders` przechowuje pełny historyczny stan danych zamówienia. Dane wybierane z tabel pomocniczych (`products`, `suppliers`, `warehouses`, `currencies`) są kopiowane do rekordu zamówienia jako wartości tekstowe.
 
 Dzięki temu późniejsza zmiana nazwy towaru, dostawcy lub danych słownikowych nie zmienia danych widocznych we wcześniej utworzonych zamówieniach.
 
@@ -52,6 +52,7 @@ Dzięki temu późniejsza zmiana nazwy towaru, dostawcy lub danych słownikowych
 | 10 | `container_number` | TEXT | Nie | Numer kontenera. Maksymalnie 50 znaków. |
 | 11 | `eta_port_date` | TEXT | Nie | Planowana data dotarcia do portu. Format `YYYY-MM-DD`. |
 | 12 | `eta_destination_date` | TEXT | Nie | Planowana data dotarcia do lokalnego miejsca docelowego. Format `YYYY-MM-DD`. |
+| 12a | `warehouse_name` | TEXT | Nie* | Nazwa magazynu dostaw skopiowana z tabeli `warehouses`. Maksymalnie 100 znaków. *Pole jest wymagane na formularzu aplikacji (jak `product_name`/`supplier_name`), ale w bazie pozostaje `NULL`-owalne — kolumna została dodana migracją nr 3 do tabeli zawierającej już historyczne rekordy sprzed wprowadzenia obsługi wielu magazynów, które nie mają tej wartości. |
 | 13 | `has_eur1_certificate` | INTEGER | Nie | Informacja, czy dostępny jest dokument EUR.1. Wartość `0` lub `1`. |
 | 14 | `batch_number` | TEXT | Nie | Numer partii. Jeżeli podany, musi mieć dokładnie 13 znaków. |
 | 15 | `sent_for_testing_date` | TEXT | Nie | Data wysłania partii do badań. Format `YYYY-MM-DD`. |
@@ -88,6 +89,7 @@ Dzięki temu późniejsza zmiana nazwy towaru, dostawcy lub danych słownikowych
 | `container_number` | Numer kontenera przypisanego do transportu zamówienia. |
 | `eta_port_date` | Przewidywana data dotarcia transportu do portu. |
 | `eta_destination_date` | Przewidywana data dotarcia transportu do lokalnego miejsca docelowego. |
+| `warehouse_name` | Nazwa magazynu dostaw skopiowana ze słownika magazynów w chwili tworzenia zamówienia. |
 | `has_eur1_certificate` | Informacja, czy dla zamówienia / dostawy dostępny jest dokument EUR.1. |
 | `batch_number` | Numer partii towaru. |
 | `sent_for_testing_date` | Data przekazania towaru lub próbki do badań. |
@@ -175,14 +177,23 @@ Dzięki temu dane historyczne są niezależne od późniejszych zmian w słownik
 | `id` | INTEGER | Tak | Klucz główny z autonumeracją. |
 | `name` | TEXT | Tak | Nazwa dostawcy, maksymalnie 100 znaków. Wartość unikalna. |
 
-### 6.3. Tabela walut – `currencies`
+### 6.3. Tabela magazynów – `warehouses`
+
+| Pole | Typ SQLite | Wymagane | Uwagi |
+|---|---|:---:|---|
+| `id` | INTEGER | Tak | Klucz główny z autonumeracją. |
+| `name` | TEXT | Tak | Nazwa magazynu, maksymalnie 100 znaków. Wartość unikalna. |
+
+> Dodana w wersji 0.9 dokumentu, w związku z tym, że firma dysponuje kilkoma magazynami dostaw, a nie jednym jak zakładano wcześniej (patrz sekcja 11).
+
+### 6.4. Tabela walut – `currencies`
 
 | Pole | Typ SQLite | Wymagane | Uwagi |
 |---|---|:---:|---|
 | `id` | INTEGER | Tak | Klucz główny z autonumeracją. |
 | `code` | TEXT | Tak | Trzyliterowy kod waluty ISO 4217, np. `EUR`, `USD`, `PLN`. Wartość unikalna. |
 
-### 6.4. Tabela historii zmian – `purchase_order_history` (FR-010)
+### 6.5. Tabela historii zmian – `purchase_order_history` (FR-010)
 
 Rejestruje kto i kiedy edytował dany wpis oraz które pola się zmieniły. Wpis w tej tabeli powstaje wyłącznie przy edycji istniejącego zamówienia (nie przy jego utworzeniu) i tylko wtedy, gdy przynajmniej jedno pole faktycznie się zmieniło.
 
@@ -213,6 +224,13 @@ CREATE TABLE IF NOT EXISTS products (
 );
 
 CREATE TABLE IF NOT EXISTS suppliers (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL
+        CHECK (length(trim(name)) BETWEEN 1 AND 100),
+    UNIQUE (name)
+);
+
+CREATE TABLE IF NOT EXISTS warehouses (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL
         CHECK (length(trim(name)) BETWEEN 1 AND 100),
@@ -279,6 +297,12 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
 
     eta_port_date TEXT,
     eta_destination_date TEXT,
+
+    warehouse_name TEXT
+        CHECK (
+            warehouse_name IS NULL
+            OR length(trim(warehouse_name)) BETWEEN 1 AND 100
+        ),
 
     has_eur1_certificate INTEGER
         CHECK (
@@ -357,6 +381,9 @@ CREATE INDEX IF NOT EXISTS idx_purchase_orders_product_name
 CREATE INDEX IF NOT EXISTS idx_purchase_orders_supplier_name
     ON purchase_orders(supplier_name);
 
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_warehouse_name
+    ON purchase_orders(warehouse_name);
+
 CREATE INDEX IF NOT EXISTS idx_purchase_orders_currency_code
     ON purchase_orders(currency_code);
 
@@ -386,7 +413,7 @@ COMMIT;
 
 1. `purchase_orders.id` ma autonumerację dzięki `INTEGER PRIMARY KEY`.
 2. Nie zastosowano słowa `AUTOINCREMENT`, ponieważ w SQLite `INTEGER PRIMARY KEY` automatycznie nadaje kolejne identyfikatory i jest wystarczające dla tego projektu.
-3. Tabele `products`, `suppliers` i `currencies` są słownikami pomocniczymi.
+3. Tabele `products`, `suppliers`, `warehouses` i `currencies` są słownikami pomocniczymi.
 4. Tabela `purchase_orders` nie posiada kluczy obcych do tabel słownikowych.
 5. Przy tworzeniu zamówienia aplikacja kopiuje wybrane wartości słownikowe do `product_name`, `supplier_name` i `currency_code`.
 6. Dzięki kopiowaniu danych późniejsza zmiana tabel pomocniczych nie wpływa na wcześniej zapisane zamówienia.
@@ -399,6 +426,7 @@ COMMIT;
 13. `delivered_order_value` jest wyliczane automatycznie przez aplikację jako `quantity_kg * delivered_price_per_kg`, gdy `delivered_price_per_kg` jest znane, w przeciwnym razie pozostaje `NULL`; pole jest tylko do odczytu w formularzu i nie jest wymagane przy tworzeniu zamówienia.
 14. Mimo braku klucza obcego z `purchase_orders.currency_code` do `currencies` (patrz punkt 4), aplikacja przy zapisie wpisu waliduje, że podany kod waluty istnieje w tabeli `currencies` — odrzuca zapis, jeśli waluta nie jest w słowniku, nawet jeśli sam format (3 wielkie litery) jest poprawny.
 15. `order_number` i `batch_number` nie mają w bazie ograniczenia `UNIQUE`, ale aplikacja przy zapisie sprawdza, czy podana wartość nie jest już użyta w innym wpisie (z wyłączeniem samego edytowanego rekordu), i odrzuca zapis w razie duplikatu.
+16. `warehouse_name` jest w bazie `NULL`-owalne (dodane migracją nr 3 — patrz sekcja 9), ale aplikacja wymaga jego podania na formularzu przy tworzeniu i edycji zamówienia, tak jak dla `product_name`/`supplier_name`. Historyczne rekordy zapisane przed wprowadzeniem obsługi wielu magazynów mają i pozostaną z `warehouse_name = NULL`.
 
 ---
 
@@ -425,7 +453,7 @@ Takie zmiany są od wersji 0.8 aplikowane przez prosty mechanizm wersjonowanych 
 3. Przy starcie aplikacji uruchamiane są tylko migracje o numerze wyższym niż najwyższy już zapisany w `schema_migrations`, każda w osobnej transakcji.
 4. Na świeżej bazie migracje stają się no-op (kolumny już są w bazowym `CREATE TABLE`), ale i tak zostają odnotowane — świeża i zaktualizowana-w-miejscu baza kończą z identyczną historią `schema_migrations`.
 
-Dotychczasowe dwa ręczne dopasowania kolumn (`is_important` z wersji 0.4, `delivered_order_value` z modelu finansowego) zostały przekształcone w migracje nr 1 i 2. Każda kolejna zmiana kolumny/ograniczenia w istniejącej tabeli powinna trafić jako nowy, kolejny numer w tej samej liście — nie jako kolejny ręczny `PRAGMA table_info` + `ALTER TABLE` w `db.ts`.
+Dotychczasowe dwa ręczne dopasowania kolumn (`is_important` z wersji 0.4, `delivered_order_value` z modelu finansowego) zostały przekształcone w migracje nr 1 i 2. Migracja nr 3 (wersja 0.9 dokumentu) dodaje kolumnę `warehouse_name` — nullable w bazie mimo bycia polem wymaganym na formularzu (patrz punkt 16 w Uwagach do skryptu), ponieważ `ALTER TABLE ... ADD COLUMN` w SQLite nie pozwala dodać kolumny `NOT NULL` bez wartości domyślnej do tabeli zawierającej już rekordy. Każda kolejna zmiana kolumny/ograniczenia w istniejącej tabeli powinna trafić jako nowy, kolejny numer w tej samej liście — nie jako kolejny ręczny `PRAGMA table_info` + `ALTER TABLE` w `db.ts`.
 
 Zweryfikowano end-to-end (świeża baza, symulowana baza sprzed migracji z realnymi danymi, podwójne uruchomienie) — dane nie są tracone, kolumny/indeksy odtwarzane poprawnie, mechanizm idempotentny.
 
@@ -457,3 +485,4 @@ Rozstrzygnięte od poprzedniej wersji dokumentu:
 | 0.6 | 2026-08-29 | Doprecyzowanie: aplikacja waliduje przy zapisie, że `currency_code` istnieje w słowniku `currencies` (mimo braku klucza obcego, patrz punkt 4/14 w Uwagach do skryptu). Rozważana walidacja "termin dostawy nie wcześniejszy niż data złożenia zamówienia" została świadomie odrzucona — `created_at` to znacznik utworzenia rekordu, nie biznesowa data złożenia zamówienia, więc taka reguła uniemożliwiałaby uzupełnianie zaległych wpisów historycznych. |
 | 0.7 | 2026-08-29 | Rozstrzygnięcie unikalności `order_number` i `batch_number`: aplikacja odrzuca zapis przy duplikacie (bez klucza `UNIQUE` w bazie, patrz punkt 15 w Uwagach do skryptu). Uporządkowano listę "Tematy do dalszego ustalenia" — usunięto pozycje już zaimplementowane. |
 | 0.8 | 2026-08-29 | Wprowadzenie wersjonowanego mechanizmu migracji schematu (`schema_migrations` + `src/lib/migrations.ts`, sekcja 9) zamiast ręcznych `PRAGMA table_info` + `ALTER TABLE` w `db.ts`. Dotychczasowe dwa dopasowania kolumn (`is_important`, `delivered_order_value`) przekształcone w migracje nr 1 i 2. |
+| 0.9 | 2026-10-03 | Dodanie kolumny `warehouse_name` (pozycja 12a, za `eta_destination_date` / „ETA cel") i słownikowej tabeli `warehouses` (sekcja 6.3) — firma korzysta z kilku magazynów dostaw, nie jednego jak zakładano wcześniej. Zastosowana migracja nr 3 (sekcja 9). Pole wymagane na formularzu aplikacji (jak `product_name`/`supplier_name`), nullable w bazie dla zgodności z już istniejącymi rekordami historycznymi. |

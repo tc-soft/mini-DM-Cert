@@ -1,7 +1,14 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import OrderForm from "@/components/orders/OrderForm";
-import { listProducts, listSuppliers, listCurrencies, getOrderById, getOrderHistory } from "@/lib/orders";
+import {
+  listProducts,
+  listSuppliers,
+  listWarehouses,
+  listCurrencies,
+  getOrderById,
+  getOrderHistory,
+} from "@/lib/orders";
 import { moneyToInputValue } from "@/lib/money";
 
 const id = Number(Astro.params.id);
@@ -14,6 +21,7 @@ const error = Astro.url.searchParams.get("error");
 const history = getOrderHistory(order.id);
 const products = listProducts().map((p) => p.name);
 const suppliers = listSuppliers().map((s) => s.name);
+const warehouses = listWarehouses().map((w) => w.name);
 const currencies = listCurrencies().map((c) => c.code);
 
 const initialValues = {
@@ -26,6 +34,7 @@ const initialValues = {
   containerNumber: order.container_number ?? "",
   etaPortDate: order.eta_port_date ?? "",
   etaDestinationDate: order.eta_destination_date ?? "",
+  warehouseName: order.warehouse_name ?? "",
   hasEur1Certificate: order.has_eur1_certificate === 1,
   deliveredPricePerKg: order.delivered_price_per_kg === null ? "" : moneyToInputValue(order.delivered_price_per_kg),
   batchNumber: order.batch_number ?? "",
@@ -56,6 +65,7 @@ const initialValues = {
       <OrderForm
         products={products}
         suppliers={suppliers}
+        warehouses={warehouses}
         currencies={currencies}
         serverError={error}
         mode="edit"

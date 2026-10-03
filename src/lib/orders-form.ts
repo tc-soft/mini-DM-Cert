@@ -26,6 +26,7 @@ export function parseOrderForm(form: FormData, context: OrderFormContext): Order
   const containerNumber = optionalField(form, "container_number");
   const etaPortDate = optionalField(form, "eta_port_date");
   const etaDestinationDate = optionalField(form, "eta_destination_date");
+  const warehouseName = field(form, "warehouse_name");
   const hasEur1Certificate = form.get("has_eur1_certificate") ? 1 : 0;
   const deliveredPriceRaw = optionalField(form, "delivered_price_per_kg");
   const batchNumber = optionalField(form, "batch_number");
@@ -48,6 +49,9 @@ export function parseOrderForm(form: FormData, context: OrderFormContext): Order
   }
   if (!supplierName || supplierName.length > 100) {
     return { ok: false, error: "Podaj nazwę dostawcy (maks. 100 znaków)." };
+  }
+  if (!warehouseName || warehouseName.length > 100) {
+    return { ok: false, error: "Podaj magazyn (maks. 100 znaków)." };
   }
 
   const quantityKg = Number(quantityRaw);
@@ -109,6 +113,7 @@ export function parseOrderForm(form: FormData, context: OrderFormContext): Order
       containerNumber,
       etaPortDate,
       etaDestinationDate,
+      warehouseName,
       hasEur1Certificate,
       deliveredPricePerKg,
       batchNumber,

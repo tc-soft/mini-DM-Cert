@@ -11,7 +11,7 @@ if (!user) {
 
 const error = Astro.url.searchParams.get("error");
 
-const kinds: DictionaryKind[] = ["products", "suppliers", "currencies"];
+const kinds: DictionaryKind[] = ["products", "suppliers", "warehouses", "currencies"];
 const sections = kinds.map((kind) => ({
   kind,
   label: dictionaryLabel(kind),
@@ -32,7 +32,7 @@ const sections = kinds.map((kind) => ({
         <ServerError message={error} />
       </div>
 
-      <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         {
           sections.map((section) => (
             <div class="rounded-2xl border border-white/10 bg-white/10 p-4 text-white backdrop-blur-xl">

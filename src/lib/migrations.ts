@@ -39,6 +39,17 @@ export const migrations: Migration[] = [
       }
     },
   },
+  {
+    version: 3,
+    name: "add purchase_orders.warehouse_name",
+    up: (db) => {
+      if (!hasColumn(db, "purchase_orders", "warehouse_name")) {
+        db.exec(
+          "ALTER TABLE purchase_orders ADD COLUMN warehouse_name TEXT CHECK (warehouse_name IS NULL OR length(trim(warehouse_name)) BETWEEN 1 AND 100)",
+        );
+      }
+    },
+  },
 ];
 
 // Runs once at startup (see db.ts). On a fresh database the base schema already has the

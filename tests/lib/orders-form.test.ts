@@ -7,6 +7,7 @@ function formWith(overrides: Record<string, string>): FormData {
   const base: Record<string, string> = {
     product_name: "Jabłka",
     supplier_name: "Acme Fruits",
+    warehouse_name: "Magazyn Główny",
     quantity_kg: "1000",
     port_price_per_kg: "1.5",
     currency_code: "EUR",
@@ -63,6 +64,16 @@ describe("parseOrderForm", () => {
 
   it("rejects an over-length product name", () => {
     const result = parseOrderForm(formWith({ product_name: "x".repeat(101) }), context);
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects a missing warehouse", () => {
+    const result = parseOrderForm(formWith({ warehouse_name: "" }), context);
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects an over-length warehouse name", () => {
+    const result = parseOrderForm(formWith({ warehouse_name: "x".repeat(101) }), context);
     expect(result.ok).toBe(false);
   });
 

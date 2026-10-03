@@ -8,6 +8,7 @@ import { PackagePlus, Pencil } from "lucide-react";
 interface Props {
   products: string[];
   suppliers: string[];
+  warehouses: string[];
   currencies: string[];
   serverError?: string | null;
   mode?: "create" | "edit";
@@ -25,6 +26,7 @@ interface FormState {
   containerNumber: string;
   etaPortDate: string;
   etaDestinationDate: string;
+  warehouseName: string;
   hasEur1Certificate: boolean;
   deliveredPricePerKg: string;
   batchNumber: string;
@@ -50,6 +52,7 @@ const initialState: FormState = {
   containerNumber: "",
   etaPortDate: "",
   etaDestinationDate: "",
+  warehouseName: "",
   hasEur1Certificate: false,
   deliveredPricePerKg: "",
   batchNumber: "",
@@ -67,17 +70,34 @@ const initialState: FormState = {
 
 // Mirrors the server-side calculation in orders-form.ts (quantity × price) so the read-only
 // value fields preview what will actually be saved, without the client being trusted for it.
-// Displayed rounded to 2 decimals, matching the app's general currency display convention.
+// Displayed rounded to 2 decimals with thousands grouping, matching the app's general currency
+// display convention (formatMoney). `useGrouping: "always"` is required: pl-PL's CLDR data sets
+// minimumGroupingDigits: 2, so without it a 4-digit value like 1250 renders as "1250,00" (no
+// separator) while 10000 renders grouped — inconsistent and easy to misread.
 function computeDerivedValue(quantityKg: string, pricePerKg: string): string {
   const qty = Number(quantityKg);
   const price = Number(pricePerKg.replace(",", "."));
   if (!Number.isInteger(qty) || qty <= 0 || !Number.isFinite(price) || price < 0) return "";
-  return (qty * price).toFixed(2);
+  return (qty * price).toLocaleString("pl-PL", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping: "always",
+  });
+}
+
+// quantity_kg is edited as a plain digit string (no grouping) in state/validation/submission —
+// this only formats it for display, so a stray thousands separator never reaches the server.
+// See computeDerivedValue above for why `useGrouping: "always"` is required under pl-PL.
+function formatThousands(digits: string): string {
+  if (!digits) return "";
+  const n = Number(digits);
+  return Number.isFinite(n) ? n.toLocaleString("pl-PL", { useGrouping: "always" }) : digits;
 }
 
 export default function OrderForm({
   products,
   suppliers,
+  warehouses,
   currencies,
   serverError,
   mode = "create",
@@ -102,6 +122,7 @@ export default function OrderForm({
     const next: typeof errors = {};
     if (!form.productName.trim()) next.productName = "Podaj towar";
     if (!form.supplierName.trim()) next.supplierName = "Podaj dostawcę";
+    if (!form.warehouseName.trim()) next.warehouseName = "Podaj magazyn";
     if (!Number.isInteger(Number(form.quantityKg)) || Number(form.quantityKg) <= 0) {
       next.quantityKg = "Ilość musi być liczbą całkowitą większą od 0";
     }
@@ -191,16 +212,15 @@ export default function OrderForm({
     <Field id="quantity_kg" label="Ilość (kg)" required error={errors.quantityKg}>
       <input
         id="quantity_kg"
-        name="quantity_kg"
-        type="number"
-        min={1}
-        step={1}
-        value={form.quantityKg}
+        type="text"
+        inputMode="numeric"
+        value={formatThousands(form.quantityKg)}
         onChange={(e) => {
-          set("quantityKg", e.target.value);
+          set("quantityKg", e.target.value.replace(/\D/g, ""));
         }}
         className={cn(inputClass, errors.quantityKg && "border-red-400/60 focus:ring-red-400")}
       />
+      <input type="hidden" name="quantity_kg" value={form.quantityKg} />
     </Field>
   );
 
@@ -372,6 +392,27 @@ export default function OrderForm({
             }}
             className={cn(inputClass, "[color-scheme:dark]")}
           />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Field id="warehouse_name" label="Magazyn" required error={errors.warehouseName}>
+          <input
+            id="warehouse_name"
+            name="warehouse_name"
+            list="warehouse-options"
+            value={form.warehouseName}
+            onChange={(e) => {
+              set("warehouseName", e.target.value);
+            }}
+            maxLength={100}
+            className={cn(inputClass, errors.warehouseName && "border-red-400/60 focus:ring-red-400")}
+          />
+          <datalist id="warehouse-options">
+            {warehouses.map((w) => (
+              <option key={w} value={w} />
+            ))}
+          </datalist>
         </Field>
       </div>
 

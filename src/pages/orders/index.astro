@@ -236,7 +236,9 @@ if (!user) {
                     <td class="px-4 py-3">{o.order_number ?? "—"}</td>
                     <td class="px-4 py-3">{o.product_name}</td>
                     <td class="px-4 py-3">{o.supplier_name}</td>
-                    <td class="px-4 py-3 text-right">{o.quantity_kg.toLocaleString("pl-PL")}</td>
+                    <td class="px-4 py-3 text-right">
+                      {o.quantity_kg.toLocaleString("pl-PL", { useGrouping: "always" })}
+                    </td>
                     <td class="px-4 py-3 text-right">
                       {formatMoney(o.order_value)} {o.currency_code}
                     </td>

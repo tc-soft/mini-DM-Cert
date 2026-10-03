@@ -25,6 +25,11 @@ export interface SupplierRow {
   name: string;
 }
 
+export interface WarehouseRow {
+  id: number;
+  name: string;
+}
+
 export interface CurrencyRow {
   id: number;
   code: string;
@@ -44,6 +49,7 @@ export interface PurchaseOrderRow {
   container_number: string | null;
   eta_port_date: string | null;
   eta_destination_date: string | null;
+  warehouse_name: string | null;
   has_eur1_certificate: 0 | 1 | null;
   batch_number: string | null;
   sent_for_testing_date: string | null;
@@ -103,6 +109,13 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS suppliers (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL
+      CHECK (length(trim(name)) BETWEEN 1 AND 100),
+    UNIQUE (name)
+  );
+
+  CREATE TABLE IF NOT EXISTS warehouses (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL
       CHECK (length(trim(name)) BETWEEN 1 AND 100),
@@ -169,6 +182,12 @@ db.exec(`
 
     eta_port_date TEXT,
     eta_destination_date TEXT,
+
+    warehouse_name TEXT
+      CHECK (
+        warehouse_name IS NULL
+        OR length(trim(warehouse_name)) BETWEEN 1 AND 100
+      ),
 
     has_eur1_certificate INTEGER
       CHECK (
@@ -258,6 +277,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_purchase_orders_order_number ON purchase_orders(order_number);
   CREATE INDEX IF NOT EXISTS idx_purchase_orders_product_name ON purchase_orders(product_name);
   CREATE INDEX IF NOT EXISTS idx_purchase_orders_supplier_name ON purchase_orders(supplier_name);
+  CREATE INDEX IF NOT EXISTS idx_purchase_orders_warehouse_name ON purchase_orders(warehouse_name);
   CREATE INDEX IF NOT EXISTS idx_purchase_orders_currency_code ON purchase_orders(currency_code);
   CREATE INDEX IF NOT EXISTS idx_purchase_orders_batch_number ON purchase_orders(batch_number);
   CREATE INDEX IF NOT EXISTS idx_purchase_orders_container_number ON purchase_orders(container_number);

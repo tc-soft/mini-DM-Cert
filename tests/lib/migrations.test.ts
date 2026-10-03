@@ -25,5 +25,6 @@ describe("runMigrations", () => {
     const columns = (db.prepare("PRAGMA table_info(purchase_orders)").all() as { name: string }[]).map((c) => c.name);
     expect(columns).toContain("is_important");
     expect(columns).toContain("delivered_order_value");
+    expect(columns).toContain("warehouse_name");
   });
 });

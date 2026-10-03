@@ -12,6 +12,7 @@ import {
   listOrdersForReport,
   listProducts,
   listSuppliers,
+  listWarehouses,
   sumOrderValueByCurrency,
   updateOrder,
   type NewOrderInput,
@@ -44,6 +45,7 @@ function baseInput(overrides: Partial<NewOrderInput> = {}): NewOrderInput {
     containerNumber: null,
     etaPortDate: null,
     etaDestinationDate: null,
+    warehouseName: "Magazyn Główny",
     hasEur1Certificate: 0,
     deliveredPricePerKg: null,
     batchNumber: null,
@@ -70,10 +72,17 @@ describe("createOrder", () => {
     expect(getOrderById(order.id)?.product_name).toBe("Wiśnie");
   });
 
-  it("auto-adds a new product/supplier name to the dictionary", () => {
-    createOrder(baseInput({ productName: "Owoc Testowy XYZ", supplierName: "Dostawca Testowy XYZ" }));
+  it("auto-adds a new product/supplier/warehouse name to the dictionary", () => {
+    createOrder(
+      baseInput({
+        productName: "Owoc Testowy XYZ",
+        supplierName: "Dostawca Testowy XYZ",
+        warehouseName: "Magazyn Testowy XYZ",
+      }),
+    );
     expect(listProducts().some((p) => p.name === "Owoc Testowy XYZ")).toBe(true);
     expect(listSuppliers().some((s) => s.name === "Dostawca Testowy XYZ")).toBe(true);
+    expect(listWarehouses().some((w) => w.name === "Magazyn Testowy XYZ")).toBe(true);
   });
 });
 

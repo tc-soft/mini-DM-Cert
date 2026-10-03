@@ -5,6 +5,7 @@ import {
   type PurchaseOrderHistoryRow,
   type PurchaseOrderRow,
   type SupplierRow,
+  type WarehouseRow,
 } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
 
@@ -14,6 +15,10 @@ export function listProducts(): ProductRow[] {
 
 export function listSuppliers(): SupplierRow[] {
   return db.prepare("SELECT id, name FROM suppliers ORDER BY name").all() as SupplierRow[];
+}
+
+export function listWarehouses(): WarehouseRow[] {
+  return db.prepare("SELECT id, name FROM warehouses ORDER BY name").all() as WarehouseRow[];
 }
 
 export function listCurrencies(): CurrencyRow[] {
@@ -131,6 +136,7 @@ export interface OrderInput {
   containerNumber: string | null;
   etaPortDate: string | null;
   etaDestinationDate: string | null;
+  warehouseName: string | null;
   hasEur1Certificate: 0 | 1 | null;
   deliveredPricePerKg: number | null;
   batchNumber: string | null;
@@ -182,19 +188,22 @@ export function createOrder(input: NewOrderInput): void {
     `INSERT INTO purchase_orders
       (order_number, product_name, supplier_name, quantity_kg, port_price_per_kg, order_value,
        delivered_order_value, currency_code, container_number, eta_port_date, eta_destination_date,
-       has_eur1_certificate, delivered_price_per_kg, batch_number, sent_for_testing_date, test_results,
-       is_blocked, taken_for_production, payment_due_date, invoice_number, payment_date, delivery_date,
-       is_important, notes, created_by)
+       warehouse_name, has_eur1_certificate, delivered_price_per_kg, batch_number, sent_for_testing_date,
+       test_results, is_blocked, taken_for_production, payment_due_date, invoice_number, payment_date,
+       delivery_date, is_important, notes, created_by)
      VALUES (@orderNumber, @productName, @supplierName, @quantityKg, @portPricePerKg, @orderValue,
        @deliveredOrderValue, @currencyCode, @containerNumber, @etaPortDate, @etaDestinationDate,
-       @hasEur1Certificate, @deliveredPricePerKg, @batchNumber, @sentForTestingDate, @testResults,
-       @isBlocked, @takenForProduction, @paymentDueDate, @invoiceNumber, @paymentDate, @deliveryDate,
-       @isImportant, @notes, @createdBy)`,
+       @warehouseName, @hasEur1Certificate, @deliveredPricePerKg, @batchNumber, @sentForTestingDate,
+       @testResults, @isBlocked, @takenForProduction, @paymentDueDate, @invoiceNumber, @paymentDate,
+       @deliveryDate, @isImportant, @notes, @createdBy)`,
   );
 
   const insertAll = db.transaction((order: NewOrderInput) => {
     db.prepare("INSERT OR IGNORE INTO products (name) VALUES (?)").run(order.productName);
     db.prepare("INSERT OR IGNORE INTO suppliers (name) VALUES (?)").run(order.supplierName);
+    if (order.warehouseName) {
+      db.prepare("INSERT OR IGNORE INTO warehouses (name) VALUES (?)").run(order.warehouseName);
+    }
     insertOrder.run(order);
   });
 
@@ -219,6 +228,7 @@ const HISTORY_FIELDS: { column: keyof PurchaseOrderRow; label: string; format: H
   { column: "container_number", label: "Numer kontenera", format: "text" },
   { column: "eta_port_date", label: "ETA port", format: "date" },
   { column: "eta_destination_date", label: "ETA cel", format: "date" },
+  { column: "warehouse_name", label: "Magazyn", format: "text" },
   { column: "has_eur1_certificate", label: "Certyfikat EUR.1", format: "bool" },
   { column: "batch_number", label: "Numer partii", format: "text" },
   { column: "sent_for_testing_date", label: "Data wysłania do badań", format: "date" },
@@ -283,6 +293,7 @@ export function updateOrder(id: number, input: UpdateOrderInput): void {
        container_number = @containerNumber,
        eta_port_date = @etaPortDate,
        eta_destination_date = @etaDestinationDate,
+       warehouse_name = @warehouseName,
        has_eur1_certificate = @hasEur1Certificate,
        delivered_price_per_kg = @deliveredPricePerKg,
        batch_number = @batchNumber,
@@ -308,6 +319,9 @@ export function updateOrder(id: number, input: UpdateOrderInput): void {
   const updateAll = db.transaction((order: UpdateOrderInput & { id: number }) => {
     db.prepare("INSERT OR IGNORE INTO products (name) VALUES (?)").run(order.productName);
     db.prepare("INSERT OR IGNORE INTO suppliers (name) VALUES (?)").run(order.supplierName);
+    if (order.warehouseName) {
+      db.prepare("INSERT OR IGNORE INTO warehouses (name) VALUES (?)").run(order.warehouseName);
+    }
     updateOrderStmt.run(order);
 
     const after = getOrderById(order.id);

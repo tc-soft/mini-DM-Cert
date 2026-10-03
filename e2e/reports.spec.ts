@@ -20,6 +20,7 @@ test.describe("reports (FR-009)", () => {
     await page.locator("#port_price_per_kg").fill("100");
     await page.locator("#currency_code").selectOption("EUR");
     await page.locator("#eta_destination_date").fill(today);
+    await page.locator("#warehouse_name").fill("E2E Magazyn");
     await page.getByRole("button", { name: "Zapisz zamówienie" }).click();
     await expect(page).toHaveURL(/\/orders$/);
 

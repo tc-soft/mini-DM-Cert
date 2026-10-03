@@ -1,11 +1,12 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import OrderForm from "@/components/orders/OrderForm";
-import { listProducts, listSuppliers, listCurrencies } from "@/lib/orders";
+import { listProducts, listSuppliers, listWarehouses, listCurrencies } from "@/lib/orders";
 
 const error = Astro.url.searchParams.get("error");
 const products = listProducts().map((p) => p.name);
 const suppliers = listSuppliers().map((s) => s.name);
+const warehouses = listWarehouses().map((w) => w.name);
 const currencies = listCurrencies().map((c) => c.code);
 ---
 
@@ -20,7 +21,14 @@ const currencies = listCurrencies().map((c) => c.code);
         </h1>
         <a href="/orders" class="text-sm text-blue-100/70 hover:text-white">&larr; Wróć do listy</a>
       </div>
-      <OrderForm products={products} suppliers={suppliers} currencies={currencies} serverError={error} client:load />
+      <OrderForm
+        products={products}
+        suppliers={suppliers}
+        warehouses={warehouses}
+        currencies={currencies}
+        serverError={error}
+        client:load
+      />
     </div>
   </div>
 </Layout>
