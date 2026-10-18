@@ -427,7 +427,7 @@ export default function OrderForm({
           }}
           className="size-4 rounded border-white/30 bg-white/10 text-purple-500 focus:ring-purple-400"
         />
-        Dostępny certyfikat EUR.1
+        Dostępny certyfikat EUR 1
       </label>
 
       <label htmlFor="is_important" className="flex items-center gap-2 text-sm text-blue-100/80">

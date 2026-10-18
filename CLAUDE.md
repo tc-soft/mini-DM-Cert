@@ -17,7 +17,7 @@ Pre-commit hooks: husky + lint-staged runs `eslint --fix` on `*.{ts,tsx,astro}` 
 
 ## Architecture
 
-**Astro 6 SSR app** ("mini-DM" — purchase order tracking) with React 19 islands, Tailwind 4, and a local SQLite database via `better-sqlite3`. Deployed as a standalone Node server (`@astrojs/node`, `mode: "standalone"`), typically behind a TLS-terminating reverse proxy.
+**Astro 7 SSR app** ("mini-DM" — purchase order tracking) with React 19 islands, Tailwind 4, and a local SQLite database via `better-sqlite3`. Deployed as a standalone Node server (`@astrojs/node`, `mode: "standalone"`), typically behind a TLS-terminating reverse proxy.
 
 ### Rendering mode
 
@@ -62,6 +62,7 @@ Cookie-based sessions, not a third-party auth provider:
 - **Playwright** (`e2e/*.spec.ts`) drives the real app through `npm run dev` (not build+preview — the sign-in cookie is `secure: import.meta.env.PROD`, which a production build served over plain HTTP can't actually set): sign-in, order create/edit/search with change history, date-ranged reports, and the admin/user permission split.
 - **DB isolation**: `src/lib/db.ts` opens a module-level SQLite singleton at import time, seeded from `DATABASE_PATH`/`ADMIN_USERNAME`/`ADMIN_PASSWORD` (`astro:env/server`). `tests/setup.ts` points each Vitest file at its own fresh temp DB file. This only works because `vitest.config.ts` aliases `astro:env/server` to `tests/mocks/astro-env-server.ts` (a plain `process.env` read) — Astro's real implementation snapshots env vars into generated code at Vite's first transform and caches it for the whole run, which silently broke per-file isolation and once wrote test data into the real local `data/mini-dm.db` (recovered by deleting the file; it reseeds fresh on next boot). **Don't remove that alias** without re-verifying isolation — check that `data/` stays empty after `npm run test`. Playwright similarly points `DATABASE_PATH` at its own temp file via `playwright.config.ts`'s `webServer.env`.
 - **Hydration gotcha**: `SignInForm`/`OrderForm` are React islands (`client:load`) with client-side validation. Filling their inputs before hydration finishes lets React's initial (empty) state silently overwrite what was typed — no error, just a request that never reaches the server. `e2e/helpers.ts`'s `waitForHydration()` (`page.waitForLoadState("networkidle")`) must run after every `page.goto()` to such a page, before interacting with its fields.
+- **Astro 7 single-instance dev lock**: `astro dev` now refuses to start a second instance for the same project, even on a different `--port` — it errors with "Another astro dev server is already running" (`astro dev stop` or `--force` to override). If you already have `npm run dev` running in a background shell, `npm run test:e2e`'s own `webServer` (port 4322) will fail to start until that other dev server is stopped first.
 
 ## CI
 

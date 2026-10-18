@@ -17,16 +17,16 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@astrojs/check": "^0.9.8",
-    "@astrojs/node": "^10.1.4",
-    "@astrojs/react": "^5.0.4",
-    "@astrojs/sitemap": "^3.7.2",
+    "@astrojs/check": "^0.9.10",
+    "@astrojs/node": "^11.1.7",
+    "@astrojs/react": "^7.0.1",
+    "@astrojs/sitemap": "^3.7.4",
     "@eslint/config-helpers": "^0.6.0",
     "@radix-ui/react-slot": "^1.1.2",
     "@tailwindcss/vite": "^4.2.4",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "astro": "^6.4.8",
+    "astro": "^7.3.6",
     "better-sqlite3": "^12.4.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -60,9 +60,7 @@
     "typescript-eslint": "^8.59.2",
     "vitest": "^4.1.11"
   },
-  "overrides": {
-    "vite": "^7.3.2"
-  },
+  "overrides": {},
   "lint-staged": {
     "*.{ts,tsx,astro}": [
       "eslint --fix"
