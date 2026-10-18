@@ -1,5 +1,10 @@
 import type { APIRoute } from "astro";
-import { deleteDictionaryEntry, isDictionaryKind } from "@/lib/dictionaries";
+import {
+  deleteDictionaryEntry,
+  dictionaryPagePath,
+  dictionaryRequiresAdmin,
+  isDictionaryKind,
+} from "@/lib/dictionaries";
 
 export const POST: APIRoute = (context) => {
   const user = context.locals.user;
@@ -9,9 +14,16 @@ export const POST: APIRoute = (context) => {
 
   const kind = context.params.kind;
   const id = Number(context.params.id);
-  if (kind && isDictionaryKind(kind) && Number.isInteger(id)) {
+  if (!kind || !isDictionaryKind(kind)) {
+    return context.redirect("/admin/dictionaries");
+  }
+  if (dictionaryRequiresAdmin(kind) && user.role !== "admin") {
+    return new Response("Forbidden", { status: 403 });
+  }
+
+  if (Number.isInteger(id)) {
     deleteDictionaryEntry(kind, id);
   }
 
-  return context.redirect("/admin/dictionaries");
+  return context.redirect(dictionaryPagePath(kind));
 };

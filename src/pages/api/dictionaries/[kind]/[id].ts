@@ -1,5 +1,10 @@
 import type { APIRoute } from "astro";
-import { isDictionaryKind, updateDictionaryEntry } from "@/lib/dictionaries";
+import {
+  dictionaryPagePath,
+  dictionaryRequiresAdmin,
+  isDictionaryKind,
+  updateDictionaryEntry,
+} from "@/lib/dictionaries";
 import { redirectToWithError } from "@/lib/orders-form";
 
 export const POST: APIRoute = async (context) => {
@@ -13,14 +18,17 @@ export const POST: APIRoute = async (context) => {
   if (!kind || !isDictionaryKind(kind) || !Number.isInteger(id)) {
     return context.redirect("/admin/dictionaries");
   }
+  if (dictionaryRequiresAdmin(kind) && user.role !== "admin") {
+    return new Response("Forbidden", { status: 403 });
+  }
 
   const form = await context.request.formData();
   const value = ((form.get("value") as string | null) ?? "").trim();
 
   const result = updateDictionaryEntry(kind, id, value);
   if (!result.ok) {
-    return redirectToWithError("/admin/dictionaries", result.error);
+    return redirectToWithError(dictionaryPagePath(kind), result.error);
   }
 
-  return context.redirect("/admin/dictionaries");
+  return context.redirect(dictionaryPagePath(kind));
 };

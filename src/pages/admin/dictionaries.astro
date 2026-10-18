@@ -1,8 +1,8 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import AppNav from "@/components/AppNav.astro";
+import DictionaryGrid from "@/components/admin/DictionaryGrid.astro";
 import { ServerError } from "@/components/auth/ServerError";
-import { listDictionaryEntries, dictionaryLabel, type DictionaryKind } from "@/lib/dictionaries";
 
 const { user } = Astro.locals;
 if (!user) {
@@ -10,13 +10,6 @@ if (!user) {
 }
 
 const error = Astro.url.searchParams.get("error");
-
-const kinds: DictionaryKind[] = ["products", "suppliers", "warehouses", "currencies"];
-const sections = kinds.map((kind) => ({
-  kind,
-  label: dictionaryLabel(kind),
-  entries: listDictionaryEntries(kind),
-}));
 ---
 
 <Layout title="Słowniki">
@@ -32,70 +25,7 @@ const sections = kinds.map((kind) => ({
         <ServerError message={error} />
       </div>
 
-      <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {
-          sections.map((section) => (
-            <div class="rounded-2xl border border-white/10 bg-white/10 p-4 text-white backdrop-blur-xl">
-              <h2 class="mb-3 text-lg font-semibold">{section.label}</h2>
-
-              <ul class="mb-4 space-y-2">
-                {section.entries.map((entry) => (
-                  <li class="flex items-center gap-2">
-                    <form
-                      method="POST"
-                      action={`/api/dictionaries/${section.kind}/${entry.id}`}
-                      class="flex flex-1 gap-2"
-                    >
-                      <input
-                        name="value"
-                        value={entry.value}
-                        maxLength={100}
-                        class="w-full rounded-lg border border-white/20 bg-white/10 px-2 py-1.5 text-sm text-white focus:ring-2 focus:ring-purple-400 focus:outline-none"
-                      />
-                      <button
-                        type="submit"
-                        class="shrink-0 rounded-lg border border-white/20 px-2 py-1.5 text-xs text-blue-100/80 hover:bg-white/10"
-                      >
-                        Zapisz
-                      </button>
-                    </form>
-                    <form
-                      method="POST"
-                      action={`/api/dictionaries/${section.kind}/${entry.id}/delete`}
-                      onsubmit="return confirm('Usunąć tę pozycję ze słownika? Nie wpłynie to na istniejące zamówienia.');"
-                    >
-                      <button type="submit" class="shrink-0 text-xs text-red-300 hover:text-red-100">
-                        Usuń
-                      </button>
-                    </form>
-                  </li>
-                ))}
-                {section.entries.length === 0 && <li class="text-sm text-blue-100/50">Brak pozycji.</li>}
-              </ul>
-
-              <form
-                method="POST"
-                action={`/api/dictionaries/${section.kind}`}
-                class="flex gap-2 border-t border-white/10 pt-3"
-              >
-                <input
-                  name="value"
-                  placeholder="Nowa pozycja…"
-                  maxLength={100}
-                  required
-                  class="w-full rounded-lg border border-white/20 bg-white/10 px-2 py-1.5 text-sm text-white placeholder-white/40 focus:ring-2 focus:ring-purple-400 focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  class="shrink-0 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-purple-500"
-                >
-                  Dodaj
-                </button>
-              </form>
-            </div>
-          ))
-        }
-      </div>
+      <DictionaryGrid kinds={["products", "suppliers"]} />
     </div>
   </div>
 </Layout>

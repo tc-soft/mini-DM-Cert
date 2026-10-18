@@ -4,6 +4,8 @@ import {
   createDictionaryEntry,
   deleteDictionaryEntry,
   dictionaryLabel,
+  dictionaryPagePath,
+  dictionaryRequiresAdmin,
   isDictionaryKind,
   listDictionaryEntries,
   updateDictionaryEntry,
@@ -28,6 +30,22 @@ describe("dictionaryLabel", () => {
     expect(dictionaryLabel("products")).toBe("Towary");
     expect(dictionaryLabel("warehouses")).toBe("Magazyny");
     expect(dictionaryLabel("currencies")).toBe("Waluty");
+  });
+});
+
+describe("dictionaryRequiresAdmin / dictionaryPagePath", () => {
+  it("keeps products/suppliers on the Słowniki page, open to any user", () => {
+    expect(dictionaryRequiresAdmin("products")).toBe(false);
+    expect(dictionaryRequiresAdmin("suppliers")).toBe(false);
+    expect(dictionaryPagePath("products")).toBe("/admin/dictionaries");
+    expect(dictionaryPagePath("suppliers")).toBe("/admin/dictionaries");
+  });
+
+  it("moves warehouses/currencies to the admin-only Ustawienia page", () => {
+    expect(dictionaryRequiresAdmin("warehouses")).toBe(true);
+    expect(dictionaryRequiresAdmin("currencies")).toBe(true);
+    expect(dictionaryPagePath("warehouses")).toBe("/admin/settings");
+    expect(dictionaryPagePath("currencies")).toBe("/admin/settings");
   });
 });
 

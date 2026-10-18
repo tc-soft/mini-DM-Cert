@@ -85,6 +85,7 @@ Główna persona: pracownik działu zaangażowanego w planowanie zakupów (np. z
   > Sokrates: Rozważono kontrargument: "to nice-to-have — może lepiej usunąć całkowicie zamiast trzymać jako cel drugorzędny?" Rozwiązanie: zachowano jako miły dodatek; przydatne przy pracy wieloosobowej, ale nie krytyczne dla MVP.
 - FR-011: Użytkownik może dodawać, edytować i usuwać wartości słownikowe (dostawcy, statusy, waluty, typy towarów) używane w listach rozwijalnych. Priorytet: musi być
   > Decyzja (2026-08-30): pierwotnie zarezerwowane dla Administratora; przy doprecyzowywaniu podziału uprawnień (patrz Open Questions) użytkownik zdecydował otworzyć zarządzanie słownikami dla wszystkich zalogowanych — zarządzanie kontami użytkowników (FR-007) i usuwanie wpisów zamówień (FR-006) pozostają zarezerwowane wyłącznie dla Administratora.
+  > Decyzja (2026-10-18): podział doprecyzowany dalej, z powodów UI (zbyt wąska siatka 4-kolumnowa na jednej stronie) — strona „Słowniki” (Towary, Dostawcy) zostaje otwarta dla każdego zalogowanego użytkownika; nowa strona „Ustawienia” (Magazyny, Waluty) jest zarezerwowana wyłącznie dla Administratora, bo te dwa słowniki rzadziej się zmieniają i mają szerszy wpływ (waluta napędza sumy w raporcie).
 - FR-012: Użytkownik może ręcznie oznaczyć wpis jako wymagający uwagi/ważny. Priorytet: musi być
 
 ### Raportowanie
@@ -108,7 +109,7 @@ Testy automatyczne dodane 2026-08-30 (Vitest — `tests/lib/`, Playwright E2E �
 | FR-008 (wartości słownikowe z list)    | Vitest `orders-form.test.ts` (walidacja waluty względem słownika), `dictionaries.test.ts` (CRUD słowników)                                                                                                                     |
 | FR-009 (raport per waluta)             | Vitest `orders.test.ts` (`sumOrderValueByCurrency`, `listOrdersForReport`) + E2E `reports.spec.ts` (pełny przepływ przez UI)                                                                                                   |
 | FR-010 (historia zmian)                | Vitest `orders.test.ts` (diffing historii — tylko zmienione pola) + E2E `orders.spec.ts` (wpis w historii widoczny w UI)                                                                                                       |
-| FR-011 (zarządzanie słownikami)        | Vitest `dictionaries.test.ts` (CRUD) + E2E `permissions.spec.ts` (dostęp zwykłego użytkownika do `/admin/dictionaries`)                                                                                                        |
+| FR-011 (zarządzanie słownikami)        | Vitest `dictionaries.test.ts` (CRUD + `dictionaryRequiresAdmin`/`dictionaryPagePath`) + E2E `permissions.spec.ts` (dostęp zwykłego użytkownika do `/admin/dictionaries`, przekierowanie z `/admin/settings`)                  |
 | FR-012 (ręczna flaga „wymaga uwagi”)   | Vitest `orders.test.ts` (wyprowadzenie `needs_attention`, w tym ręczne oznaczenie). **Brak E2E.**                                                                                                                              |
 
 **Znane luki:** FR-006 i FR-012 nie mają testu E2E na pozytywną ścieżkę (odpowiednio: admin faktycznie usuwa wpis; użytkownik zaznacza checkbox „ważne” i widzi flagę w tabeli/raporcie). FR-007 ma tylko częściowe pokrycie E2E (samo tworzenie konta). Logika biznesowa dla wszystkich trzech jest pokryta na poziomie Vitest.
@@ -131,8 +132,8 @@ Dodatkowo, przy zapisie każdego wpisu aplikacja odrzuca dane niespójne: kwota 
 
 Lokalne konta użytkowników (login + hasło), aplikacja działa wewnątrz firmy na lokalnym serwerze. Dwie role:
 
-- **Administrator** — ma dostęp do wszystkiego, w tym wyłącznie on zarządza kontami użytkowników (FR-007) i może usuwać wpisy (FR-006).
-- **Użytkownik** — może dodawać i edytować wpisy planowanych zakupów oraz zarządzać wartościami słownikowymi (FR-011); nie ma dostępu do zarządzania kontami użytkowników i nie może usuwać wpisów.
+- **Administrator** — ma dostęp do wszystkiego, w tym wyłącznie on zarządza kontami użytkowników (FR-007), może usuwać wpisy (FR-006) i wyłącznie on zarządza stroną „Ustawienia” (słowniki Magazyny i Waluty).
+- **Użytkownik** — może dodawać i edytować wpisy planowanych zakupów oraz zarządzać słownikami Towary i Dostawcy na stronie „Słowniki” (FR-011); nie ma dostępu do zarządzania kontami użytkowników, stroną „Ustawienia” i nie może usuwać wpisów.
 
 ## Non-Goals
 

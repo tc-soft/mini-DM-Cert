@@ -25,6 +25,10 @@ test.describe("permission split: admin vs regular user", () => {
     await page.goto("/admin/users");
     await expect(page).toHaveURL(/\/orders/);
 
+    // Ustawienia (warehouses/currencies) stays admin-only — redirected away.
+    await page.goto("/admin/settings");
+    await expect(page).toHaveURL(/\/orders/);
+
     // FR-006: order deletion stays admin-only — no delete action rendered at all.
     await page.goto("/orders");
     await expect(page.getByRole("button", { name: "Usuń" })).toHaveCount(0);

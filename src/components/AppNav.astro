@@ -1,5 +1,5 @@
 ---
-import { LayoutDashboard, ClipboardList, FileBarChart2, Users, Library, LogOut } from "lucide-react";
+import { LayoutDashboard, ClipboardList, FileBarChart2, Users, Library, Settings, LogOut } from "lucide-react";
 import type { Role } from "@/lib/db";
 
 interface Props {
@@ -14,7 +14,12 @@ const links = [
   { href: "/orders", label: "Zamówienia", icon: ClipboardList },
   { href: "/reports", label: "Raport", icon: FileBarChart2 },
   { href: "/admin/dictionaries", label: "Słowniki", icon: Library },
-  ...(user.role === "admin" ? [{ href: "/admin/users", label: "Użytkownicy", icon: Users }] : []),
+  ...(user.role === "admin"
+    ? [
+        { href: "/admin/settings", label: "Ustawienia", icon: Settings },
+        { href: "/admin/users", label: "Użytkownicy", icon: Users },
+      ]
+    : []),
 ];
 
 const isActive = (href: string) => currentPath === href || currentPath.startsWith(`${href}/`);
