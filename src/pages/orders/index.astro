@@ -199,6 +199,7 @@ if (!user) {
         <table class="w-full min-w-[900px] text-left text-sm text-white">
           <thead class="border-b border-white/10 text-blue-100/70">
             <tr>
+              <th class="px-4 py-3 font-medium"><span class="sr-only">Status realizacji</span></th>
               <th class="px-4 py-3 font-medium"><span class="sr-only">Uwaga</span></th>
               <th class="px-4 py-3 font-medium">Nr zamówienia</th>
               <th class="px-4 py-3 font-medium">Towar</th>
@@ -216,7 +217,7 @@ if (!user) {
             {
               orders.length === 0 ? (
                 <tr>
-                  <td colspan="11" class="px-4 py-8 text-center text-blue-100/50">
+                  <td colspan="12" class="px-4 py-8 text-center text-blue-100/50">
                     {hasActiveFilters ? "Brak zamówień pasujących do filtrów." : "Brak zamówień. Dodaj pierwsze."}
                   </td>
                 </tr>
@@ -228,6 +229,17 @@ if (!user) {
                       o.needs_attention === 1 && "bg-amber-500/10",
                     ]}
                   >
+                    <td class="px-4 py-3">
+                      <span
+                        class:list={[
+                          "inline-block size-2.5 rounded-full",
+                          o.delivery_date ? "bg-emerald-400" : "bg-white/25",
+                        ]}
+                        role="img"
+                        aria-label={o.delivery_date ? `Zrealizowano: ${o.delivery_date}` : "W realizacji"}
+                        title={o.delivery_date ? `Zrealizowano: ${o.delivery_date}` : "W realizacji"}
+                      />
+                    </td>
                     <td class="px-4 py-3">
                       {o.needs_attention === 1 && (
                         <TriangleAlert className="size-4 text-amber-300" aria-label="Wymaga uwagi" />
