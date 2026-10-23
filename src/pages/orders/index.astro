@@ -233,11 +233,23 @@ if (!user) {
                       <span
                         class:list={[
                           "inline-block size-2.5 rounded-full",
-                          o.delivery_date ? "bg-emerald-400" : "bg-white/25",
+                          o.is_blocked === 1 ? "bg-red-400" : o.delivery_date ? "bg-emerald-400" : "bg-white/25",
                         ]}
                         role="img"
-                        aria-label={o.delivery_date ? `Zrealizowano: ${o.delivery_date}` : "W realizacji"}
-                        title={o.delivery_date ? `Zrealizowano: ${o.delivery_date}` : "W realizacji"}
+                        aria-label={
+                          o.is_blocked === 1
+                            ? "Zablokowane"
+                            : o.delivery_date
+                              ? `Zrealizowano: ${o.delivery_date}`
+                              : "W realizacji"
+                        }
+                        title={
+                          o.is_blocked === 1
+                            ? "Zablokowane"
+                            : o.delivery_date
+                              ? `Zrealizowano: ${o.delivery_date}`
+                              : "W realizacji"
+                        }
                       />
                     </td>
                     <td class="px-4 py-3">
