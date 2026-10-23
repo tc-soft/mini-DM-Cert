@@ -7,7 +7,7 @@ test.describe("sign in (FR-001)", () => {
     await waitForHydration(page);
     await page.locator("#username").fill(E2E_ADMIN_USERNAME);
     await page.locator("#password").fill(E2E_ADMIN_PASSWORD);
-    await page.getByRole("button", { name: "Sign in" }).click();
+    await page.getByRole("button", { name: "Zaloguj się" }).click();
 
     await expect(page).toHaveURL(/\/dashboard/);
   });
@@ -17,11 +17,11 @@ test.describe("sign in (FR-001)", () => {
     await waitForHydration(page);
     await page.locator("#username").fill(E2E_ADMIN_USERNAME);
     await page.locator("#password").fill("wrong-password");
-    await page.getByRole("button", { name: "Sign in" }).click();
+    await page.getByRole("button", { name: "Zaloguj się" }).click();
 
     await expect(page).toHaveURL(/\/auth\/signin/);
     // Scoped to the actual error banner (ServerError.tsx renders it as p.text-red-300): a plain
     // getByText also matches Astro's dev-mode toolbar, which shows the page's props as debug JSON.
-    await expect(page.locator("p.text-red-300")).toContainText(/invalid username or password/i);
+    await expect(page.locator("p.text-red-300")).toContainText(/nieprawidłowy login lub hasło/i);
   });
 });

@@ -121,4 +121,23 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Chromium/Safari force a white/yellow input background on autofilled fields, overriding our
+     dark theme's translucent bg-white/10 until the field is edited. Paint over it with a solid
+     color close to the rendered (glass-card over bg-cosmic) input background instead. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active,
+  input:autofill {
+    /* !important: Tailwind's utility layer (e.g. the input's own bg-white/10) is injected after
+       @layer base, so without !important it can win the cascade over this rule despite matching. */
+    box-shadow: 0 0 0 1000px #262c42 inset !important;
+    -webkit-text-fill-color: #fff !important;
+    caret-color: #fff !important;
+    /* Chrome also falls back to its own UA default font-size/family for this state instead of
+       inheriting ours, making previewed suggestion text render visibly smaller than typed text. */
+    font: inherit !important;
+    transition: background-color 9999s ease-in-out 0s;
+  }
 }

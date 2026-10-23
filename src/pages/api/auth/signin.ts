@@ -8,7 +8,7 @@ export const POST: APIRoute = async (context) => {
 
   const session = signIn(username, password);
   if (!session) {
-    return context.redirect(`/auth/signin?error=${encodeURIComponent("Invalid username or password")}`);
+    return context.redirect(`/auth/signin?error=${encodeURIComponent("Nieprawidłowy login lub hasło")}`);
   }
 
   setSessionCookie(context.cookies, session.token, import.meta.env.PROD);

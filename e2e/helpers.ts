@@ -42,6 +42,6 @@ export async function signIn(page: Page, username: string, password: string): Pr
   await waitForHydration(page);
   await page.locator("#username").fill(username);
   await page.locator("#password").fill(password);
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("button", { name: "Zaloguj się" }).click();
   await page.waitForURL(/\/dashboard/);
 }

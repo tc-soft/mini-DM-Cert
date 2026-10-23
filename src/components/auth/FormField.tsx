@@ -10,6 +10,7 @@ interface FormFieldProps {
   name?: string;
   label: string;
   type?: string;
+  autoComplete?: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
@@ -24,6 +25,7 @@ export function FormField({
   name,
   label,
   type = "text",
+  autoComplete,
   value,
   onChange,
   placeholder,
@@ -43,20 +45,25 @@ export function FormField({
           id={id}
           name={name ?? id}
           type={type}
+          autoComplete={autoComplete}
           value={value}
           onChange={(e) => {
             onChange(e.target.value);
           }}
           placeholder={placeholder}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : undefined}
           className={cn(
             inputBase,
-            error ? "border-red-400/60 focus:ring-red-400" : "border-white/20 focus:ring-purple-400",
+            error
+              ? "border-red-400/60 focus:border-red-400 focus:ring-red-400/25"
+              : "border-white/20 focus:border-purple-400 focus:ring-purple-400/25",
           )}
         />
         {endContent}
       </div>
       {error ? (
-        <p className="mt-1 flex items-center gap-1 text-xs text-red-300">
+        <p id={`${id}-error`} className="mt-1 flex items-center gap-1 text-xs text-red-300">
           <CircleAlert className="size-3" />
           {error}
         </p>

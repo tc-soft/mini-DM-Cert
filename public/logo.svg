@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" fill="none" role="img" aria-label="Logo mini-DM - Data Layers">
+
+  <path d="m25 6.8 18 10.3L25 27.6 7 17.1 25 6.8Z" fill="#B783FF" fill-opacity=".14" stroke="#E9E5FF" stroke-width="2.7" stroke-linejoin="round"/>
+  <path d="m7 24.1 18 10.5 18-10.5" fill="none" stroke="#C59DFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m7 31.5 18 10.2 18-10.2" fill="none" stroke="#E9E5FF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M20 17.3h10" fill="none" stroke="#C59DFF" stroke-width="2.7" stroke-linecap="round"/>
+
+</svg>

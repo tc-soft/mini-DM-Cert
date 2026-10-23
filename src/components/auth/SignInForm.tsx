@@ -9,75 +9,102 @@ interface Props {
   serverError?: string | null;
 }
 
+interface FieldErrors {
+  username?: string;
+  password?: string;
+}
+
 export default function SignInForm({ serverError }: Props) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [serverErrorDismissed, setServerErrorDismissed] = useState(false);
 
   function validate() {
-    const next: typeof errors = {};
+    const next: FieldErrors = {};
+
     if (!username.trim()) {
-      next.username = "Username is required";
+      next.username = "Login jest wymagany";
     }
     if (!password) {
-      next.password = "Password is required";
+      next.password = "Hasło jest wymagane";
     }
+
     setErrors(next);
     return Object.keys(next).length === 0;
   }
 
-  function clearError(field: keyof typeof errors) {
-    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
+  function clearError(field: keyof FieldErrors) {
+    setErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev));
   }
 
   function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
+    // Po nowej probie nie pokazujemy bledu z poprzedniego logowania.
+    setServerErrorDismissed(true);
+
     if (!validate()) {
       e.preventDefault();
     }
   }
 
+  // Blad serwera pokazujemy po powrocie na strone, ale nie razem z
+  // lokalnymi bledami walidacji ani po rozpoczeciu nowej proby.
+  const visibleServerError = serverErrorDismissed || errors.username || errors.password ? null : serverError;
+
   return (
-    <form method="POST" action="/api/auth/signin" className="space-y-4" onSubmit={handleSubmit} noValidate>
-      <FormField
-        id="username"
-        label="Username"
-        value={username}
-        onChange={(v) => {
-          setUsername(v);
-          clearError("username");
-        }}
-        placeholder="your username"
-        error={errors.username}
-        icon={<UserRound className="size-4" />}
-      />
+    <form method="POST" action="/api/auth/signin" className="space-y-5" onSubmit={handleSubmit} noValidate>
+      {/* Stale miejsce na pole, a komunikat walidacji miesci sie w odstepie ponizej. */}
+      <div className="h-[68px]">
+        <FormField
+          id="username"
+          label="Login"
+          autoComplete="off"
+          value={username}
+          onChange={(v) => {
+            setUsername(v);
+            clearError("username");
+            setServerErrorDismissed(true);
+          }}
+          placeholder="login"
+          error={errors.username}
+          icon={<UserRound className="size-4" />}
+        />
+      </div>
 
-      <FormField
-        id="password"
-        label="Password"
-        type={showPassword ? "text" : "password"}
-        value={password}
-        onChange={(v) => {
-          setPassword(v);
-          clearError("password");
-        }}
-        placeholder="Your password"
-        error={errors.password}
-        icon={<Lock className="size-4" />}
-        endContent={
-          <PasswordToggle
-            visible={showPassword}
-            onToggle={() => {
-              setShowPassword(!showPassword);
-            }}
-          />
-        }
-      />
+      <div className="h-[68px]">
+        <FormField
+          id="password"
+          label="Hasło"
+          type={showPassword ? "text" : "password"}
+          autoComplete="current-password"
+          value={password}
+          onChange={(v) => {
+            setPassword(v);
+            clearError("password");
+            setServerErrorDismissed(true);
+          }}
+          placeholder="hasło"
+          error={errors.password}
+          icon={<Lock className="size-4" />}
+          endContent={
+            <PasswordToggle
+              visible={showPassword}
+              onToggle={() => {
+                setShowPassword(!showPassword);
+              }}
+            />
+          }
+        />
+      </div>
 
-      <ServerError message={serverError} />
+      {/* Rezerwacja wysokosci rowniez wtedy, gdy komunikat jest ukryty. */}
+      <div className="h-8">
+        <ServerError message={visibleServerError} reserveSpace />
+      </div>
 
-      <SubmitButton pendingText="Signing in..." icon={<LogIn className="size-4" />}>
-        Sign in
+      <SubmitButton pendingText="Logowanie…" icon={<LogIn className="size-4" />}>
+        Zaloguj się
       </SubmitButton>
     </form>
   );
