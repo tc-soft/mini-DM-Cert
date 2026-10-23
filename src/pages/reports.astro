@@ -97,6 +97,7 @@ const totals = sumOrderValueByCurrency(filters);
         <table class="w-full min-w-[800px] text-left text-sm text-white">
           <thead class="border-b border-white/10 text-blue-100/70">
             <tr>
+              <th class="px-4 py-3 font-medium"><span class="sr-only">Status realizacji</span></th>
               <th class="px-4 py-3 font-medium"><span class="sr-only">Uwaga</span></th>
               <th class="px-4 py-3 font-medium">Nr zamówienia</th>
               <th class="px-4 py-3 font-medium">Dostawca</th>
@@ -110,7 +111,7 @@ const totals = sumOrderValueByCurrency(filters);
             {
               orders.length === 0 ? (
                 <tr>
-                  <td colspan="7" class="px-4 py-8 text-center text-blue-100/50">
+                  <td colspan="8" class="px-4 py-8 text-center text-blue-100/50">
                     Brak zamówień w wybranym zakresie dat.
                   </td>
                 </tr>
@@ -122,6 +123,29 @@ const totals = sumOrderValueByCurrency(filters);
                       o.needs_attention === 1 && "bg-amber-500/10",
                     ]}
                   >
+                    <td class="px-4 py-3">
+                      <span
+                        class:list={[
+                          "inline-block size-2.5 rounded-full",
+                          o.is_blocked === 1 ? "bg-red-400" : o.delivery_date ? "bg-emerald-400" : "bg-white/25",
+                        ]}
+                        role="img"
+                        aria-label={
+                          o.is_blocked === 1
+                            ? "Zablokowane"
+                            : o.delivery_date
+                              ? `Zrealizowano: ${o.delivery_date}`
+                              : "W realizacji"
+                        }
+                        title={
+                          o.is_blocked === 1
+                            ? "Zablokowane"
+                            : o.delivery_date
+                              ? `Zrealizowano: ${o.delivery_date}`
+                              : "W realizacji"
+                        }
+                      />
+                    </td>
                     <td class="px-4 py-3">
                       {o.needs_attention === 1 && (
                         <TriangleAlert className="size-4 text-amber-300" aria-label="Wymaga uwagi" />
