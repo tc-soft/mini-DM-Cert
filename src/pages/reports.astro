@@ -42,7 +42,7 @@ const totals = sumOrderValueByCurrency(filters);
             name="from"
             type="date"
             value={filters.dateFrom ?? ""}
-            class="w-full rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-sm text-white [color-scheme:dark] focus:ring-2 focus:ring-purple-400 focus:outline-none"
+            class="w-min rounded-lg border border-white/20 bg-white/10 px-2 py-1.5 text-xs text-white [color-scheme:dark] focus:ring-2 focus:ring-purple-400 focus:outline-none"
           />
         </div>
 
@@ -53,27 +53,56 @@ const totals = sumOrderValueByCurrency(filters);
             name="to"
             type="date"
             value={filters.dateTo ?? ""}
-            class="w-full rounded-lg border border-white/20 bg-white/10 px-2 py-2 text-sm text-white [color-scheme:dark] focus:ring-2 focus:ring-purple-400 focus:outline-none"
+            class="w-min rounded-lg border border-white/20 bg-white/10 px-2 py-1.5 text-xs text-white [color-scheme:dark] focus:ring-2 focus:ring-purple-400 focus:outline-none"
           />
         </div>
 
         <button
-          type="submit"
-          class="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-500"
+          type="button"
+          id="preset-current-month"
+          class="w-[119px] rounded-lg border border-white/20 bg-white/10 px-2 py-1.5 text-xs font-normal text-white transition-colors hover:bg-white/20"
         >
-          Generuj raport
+          Bieżący miesiąc
         </button>
+        <button
+          type="button"
+          id="preset-next-month"
+          class="w-[119px] rounded-lg border border-white/20 bg-white/10 px-2 py-1.5 text-xs font-normal text-white transition-colors hover:bg-white/20"
+        >
+          Przyszły miesiąc
+        </button>
+        <button
+          type="button"
+          id="preset-next-week"
+          class="w-[119px] rounded-lg border border-white/20 bg-white/10 px-2 py-1.5 text-xs font-normal text-white transition-colors hover:bg-white/20"
+        >
+          Kolejny tydzień
+        </button>
+        <button
+          type="button"
+          id="preset-next-3-weeks"
+          class="w-[119px] rounded-lg border border-white/20 bg-white/10 px-2 py-1.5 text-xs font-normal text-white transition-colors hover:bg-white/20"
+        >
+          Kolejne 3 tyg.
+        </button>
+
         {
           hasRange && (
-            <a href="/reports" class="text-sm text-blue-100/70 hover:text-white">
+            <a href="/reports" class="text-xs text-blue-100/70 hover:text-white">
               Wyczyść zakres
             </a>
           )
         }
-        <span class="text-sm text-blue-100/50">
+        <span class="text-xs text-blue-100/50">
           {orders.length}
           {orders.length === 1 ? "wynik" : "wyników"}
         </span>
+        <button
+          type="submit"
+          class="w-36 ml-auto rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-normal text-white transition-colors hover:bg-purple-500"
+        >
+          Generuj raport
+        </button>
       </form>
 
       <div class="mb-4 flex flex-wrap gap-3">
@@ -171,3 +200,52 @@ const totals = sumOrderValueByCurrency(filters);
     </div>
   </div>
 </Layout>
+
+<script>
+  // Uses local Y/M/D components, not toISOString() — that converts to UTC first, which would
+  // shift local midnight back a day in any positive-UTC-offset timezone (e.g. Europe/Warsaw).
+  function toIsoDate(d: Date): string {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function setMonthRange(monthOffset: number) {
+    const from = document.getElementById("from") as HTMLInputElement | null;
+    const to = document.getElementById("to") as HTMLInputElement | null;
+    if (!from || !to) return;
+
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + monthOffset + 1, 0);
+
+    from.value = toIsoDate(firstDay);
+    to.value = toIsoDate(lastDay);
+    from.form?.submit();
+  }
+
+  function nextMonday(): Date {
+    const now = new Date();
+    const daysUntilMonday = (8 - now.getDay()) % 7 || 7;
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntilMonday);
+  }
+
+  function setWeeksFromNextMonday(weeks: number) {
+    const from = document.getElementById("from") as HTMLInputElement | null;
+    const to = document.getElementById("to") as HTMLInputElement | null;
+    if (!from || !to) return;
+
+    const start = nextMonday();
+    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + weeks * 7 - 1);
+
+    from.value = toIsoDate(start);
+    to.value = toIsoDate(end);
+    from.form?.submit();
+  }
+
+  document.getElementById("preset-current-month")?.addEventListener("click", () => setMonthRange(0));
+  document.getElementById("preset-next-month")?.addEventListener("click", () => setMonthRange(1));
+  document.getElementById("preset-next-week")?.addEventListener("click", () => setWeeksFromNextMonday(1));
+  document.getElementById("preset-next-3-weeks")?.addEventListener("click", () => setWeeksFromNextMonday(3));
+</script>

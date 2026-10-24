@@ -40,6 +40,9 @@ const OVERDUE_PAYMENT_SQL = `(
   payment_due_date IS NOT NULL AND payment_due_date < date('now') AND payment_date IS NULL
 )`;
 
+// Matches the "W realizacji" status dot shown in the orders list/report: not blocked and not yet delivered.
+const IN_PROGRESS_SQL = `(is_blocked = 0 AND delivery_date IS NULL)`;
+
 export type PurchaseOrderWithFlag = PurchaseOrderRow & { needs_attention: 0 | 1 };
 
 export interface OrderFilters {
@@ -52,6 +55,7 @@ export interface OrderFilters {
   onlyAttention: boolean;
   onlyBlocked: boolean;
   onlyOverduePayment: boolean;
+  onlyInProgress: boolean;
 }
 
 const emptyFilters: OrderFilters = {
@@ -64,6 +68,7 @@ const emptyFilters: OrderFilters = {
   onlyAttention: false,
   onlyBlocked: false,
   onlyOverduePayment: false,
+  onlyInProgress: false,
 };
 
 // Filters travel as URL query params and are never persisted server-side, so the view stays
@@ -88,6 +93,7 @@ export function listOrders(filters: Partial<OrderFilters> = {}): PurchaseOrderWi
          AND (@onlyAttention = 0 OR ${NEEDS_ATTENTION_SQL})
          AND (@onlyBlocked = 0 OR is_blocked = 1)
          AND (@onlyOverduePayment = 0 OR ${OVERDUE_PAYMENT_SQL})
+         AND (@onlyInProgress = 0 OR ${IN_PROGRESS_SQL})
        ORDER BY created_at DESC`,
     )
     .all({
@@ -95,6 +101,7 @@ export function listOrders(filters: Partial<OrderFilters> = {}): PurchaseOrderWi
       onlyAttention: f.onlyAttention ? 1 : 0,
       onlyBlocked: f.onlyBlocked ? 1 : 0,
       onlyOverduePayment: f.onlyOverduePayment ? 1 : 0,
+      onlyInProgress: f.onlyInProgress ? 1 : 0,
     }) as PurchaseOrderWithFlag[];
 }
 

@@ -165,6 +165,17 @@ describe("listOrders filters (FR-005)", () => {
 
     expect(listOrders({ onlyOverduePayment: true })).toHaveLength(1);
   });
+
+  it("onlyInProgress returns orders that are neither blocked nor delivered", () => {
+    createOrder(baseInput({ isBlocked: 0, deliveryDate: null }));
+    createOrder(baseInput({ isBlocked: 1, deliveryDate: null }));
+    createOrder(baseInput({ isBlocked: 0, deliveryDate: daysFromNow(-1) }));
+
+    const results = listOrders({ onlyInProgress: true });
+    expect(results).toHaveLength(1);
+    expect(results[0].is_blocked).toBe(0);
+    expect(results[0].delivery_date).toBeNull();
+  });
 });
 
 describe("needs_attention derivation (FR-012 / Business Logic)", () => {
