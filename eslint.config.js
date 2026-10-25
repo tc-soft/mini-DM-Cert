@@ -12,13 +12,7 @@ import tseslint from "typescript-eslint";
 const gitignorePath = path.resolve(import.meta.dirname, ".gitignore");
 
 const baseConfig = tseslint.config({
-  extends: [eslint.configs.recommended, tseslint.configs.strictTypeChecked, tseslint.configs.stylisticTypeChecked],
-  languageOptions: {
-    parserOptions: {
-      projectService: true,
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
+  extends: [eslint.configs.recommended, tseslint.configs.recommended],
   rules: {
     "no-console": "warn",
     "no-unused-vars": "off",
@@ -32,6 +26,26 @@ const baseConfig = tseslint.config({
         ignoreRestSiblings: true,
       },
     ],
+  },
+});
+
+// Type-checked rules need parserOptions.projectService, which builds/type-checks a full TS
+// program. astro-eslint-parser@1.x doesn't support projectService and silently falls back to
+// the legacy, uncached `project: true` mode — rebuilding the program per file instead of
+// reusing one language-service instance. For .ts/.tsx this is what CI measures at ~20s total,
+// but across all .astro files it has been observed to make `eslint .` hang indefinitely on at
+// least one dev machine. Scoped away from .astro here; re-merge once astro-eslint-parser
+// supports projectService.
+const typeCheckedConfig = tseslint.config({
+  files: ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"],
+  extends: [tseslint.configs.strictTypeChecked, tseslint.configs.stylisticTypeChecked],
+  languageOptions: {
+    parserOptions: {
+      projectService: true,
+      tsconfigRootDir: import.meta.dirname,
+    },
+  },
+  rules: {
     "@typescript-eslint/restrict-template-expressions": ["error", { allowNumber: true }],
     "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false } }],
   },
@@ -72,13 +86,6 @@ const nodeScriptsConfig = tseslint.config({
 const astroConfig = tseslint.config({
   files: ["**/*.astro"],
   rules: {
-    // astro-eslint-parser@1.x doesn't support typescript-eslint's `projectService` and
-    // silently falls back to `project: true`, which leaves return-statement nodes in
-    // frontmatter without a parent reference. no-misused-promises' checksVoidReturn.returns
-    // check dereferences that parent and crashes the whole lint run. Disabling just the
-    // `returns` check for .astro files avoids the crash; re-enable once astro-eslint-parser
-    // (or a projectService-compatible major bump) fixes parent tracking.
-    "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false, returns: false } }],
     "astro/no-set-html-directive": "error",
     "astro/no-unused-css-selector": "warn",
     "astro/prefer-class-list-directive": "warn",
@@ -88,6 +95,7 @@ const astroConfig = tseslint.config({
 export default tseslint.config(
   includeIgnoreFile(gitignorePath),
   baseConfig,
+  typeCheckedConfig,
   reactConfig,
   eslintPluginAstro.configs["flat/recommended"],
   ...eslintPluginAstro.configs["flat/jsx-a11y-recommended"],
