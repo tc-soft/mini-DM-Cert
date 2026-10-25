@@ -195,11 +195,11 @@ if (!user) {
             )
           }
           <span class="text-xs text-blue-100/50">
-            {orders.length} {orders.length === 1 ? "wynik" : "wyników"}
+            {`${orders.length} ${orders.length === 1 ? "wynik" : "wyników"}`}
           </span>
           <button
             type="submit"
-            class="w-36 ml-auto rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-normal text-white transition-colors hover:bg-purple-500"
+            class="ml-auto w-36 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-normal text-white transition-colors hover:bg-purple-500"
           >
             Filtruj
           </button>
