@@ -115,7 +115,9 @@ describe("runMigrations against a pre-migration (legacy) database", () => {
     const legacyDb = createLegacyDb();
 
     runMigrations(legacyDb);
-    expect(() => runMigrations(legacyDb)).not.toThrow();
+    expect(() => {
+      runMigrations(legacyDb);
+    }).not.toThrow();
 
     const count = (legacyDb.prepare("SELECT COUNT(*) AS c FROM schema_migrations").get() as { c: number }).c;
     expect(count).toBe(migrations.length);
