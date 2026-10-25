@@ -94,8 +94,7 @@ const totals = sumOrderValueByCurrency(filters);
           )
         }
         <span class="text-xs text-blue-100/50">
-          {orders.length}
-          {orders.length === 1 ? "wynik" : "wyników"}
+          {orders.length} {orders.length === 1 ? "wynik" : "wyników"}
         </span>
         <button
           type="submit"

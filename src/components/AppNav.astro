@@ -28,7 +28,9 @@ const isActive = (href: string) => currentPath === href || currentPath.startsWit
 <nav
   class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 backdrop-blur-xl"
 >
-  <div class="flex flex-wrap items-center gap-1">
+  <div class="flex flex-wrap items-center gap-4">
+    <img src="/logo.svg" alt="mini-DM" class="size-8 shrink-0" />
+    <div class="flex flex-wrap items-center gap-1">
     {
       links.map(({ href, label, icon: Icon }) => (
         <a
@@ -45,6 +47,7 @@ const isActive = (href: string) => currentPath === href || currentPath.startsWit
         </a>
       ))
     }
+    </div>
   </div>
   <div class="flex items-center gap-3 text-sm">
     <span class="text-blue-100/60">{user.username}</span>
