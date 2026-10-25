@@ -31,22 +31,22 @@ const isActive = (href: string) => currentPath === href || currentPath.startsWit
   <div class="flex flex-wrap items-center gap-4">
     <img src="/logo.svg" alt="mini-DM" class="size-8 shrink-0" />
     <div class="flex flex-wrap items-center gap-1">
-    {
-      links.map(({ href, label, icon: Icon }) => (
-        <a
-          href={href}
-          class:list={[
-            "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
-            isActive(href)
-              ? "border-purple-400/40 bg-purple-600/30 text-white"
-              : "border-transparent text-blue-100/70 hover:bg-white/10 hover:text-white",
-          ]}
-        >
-          <Icon className="size-4" />
-          {label}
-        </a>
-      ))
-    }
+      {
+        links.map(({ href, label, icon: Icon }) => (
+          <a
+            href={href}
+            class:list={[
+              "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
+              isActive(href)
+                ? "border-purple-400/40 bg-purple-600/30 text-white"
+                : "border-transparent text-blue-100/70 hover:bg-white/10 hover:text-white",
+            ]}
+          >
+            <Icon className="size-4" />
+            {label}
+          </a>
+        ))
+      }
     </div>
   </div>
   <div class="flex items-center gap-3 text-sm">
