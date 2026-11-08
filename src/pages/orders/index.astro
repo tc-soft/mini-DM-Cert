@@ -4,7 +4,7 @@ import AppNav from "@/components/AppNav.astro";
 import { listOrders, listOrderFilterOptions } from "@/lib/orders";
 import { formatMoney } from "@/lib/money";
 import { queryParam } from "@/lib/http";
-import { TriangleAlert, PackagePlus } from "lucide-react";
+import { TriangleAlert, PackagePlus, FlaskConical } from "lucide-react";
 
 // Query params are the only place these live — nothing is persisted server-side, so filtering
 // never changes the default view another user sees (FR-005).
@@ -32,7 +32,7 @@ if (!user) {
 
 <Layout title="Zamówienia">
   <div class="bg-cosmic min-h-screen p-4 py-10">
-    <div class="mx-auto w-full max-w-6xl">
+    <div class="mx-auto w-full max-w-7xl">
       <AppNav user={user} currentPath={Astro.url.pathname} />
 
       <div class="mb-6 flex items-center gap-4">
@@ -220,6 +220,10 @@ if (!user) {
               <th class="px-4 py-3 font-medium">Kontener</th>
               <th class="px-4 py-3 font-medium">ETA port</th>
               <th class="px-4 py-3 font-medium">ETA cel</th>
+              <th class="px-4 py-3 font-medium" title="Badania laboratoryjne od dostawcy">
+                <FlaskConical className="size-4" aria-hidden="true" />
+                <span class="sr-only">Badania laboratoryjne od dostawcy</span>
+              </th>
               <th class="px-4 py-3 font-medium">Dodał</th>
               <th class="px-4 py-3 font-medium">Akcje</th>
             </tr>
@@ -228,7 +232,7 @@ if (!user) {
             {
               orders.length === 0 ? (
                 <tr>
-                  <td colspan="12" class="px-4 py-8 text-center text-blue-100/50">
+                  <td colspan="13" class="px-4 py-8 text-center text-blue-100/50">
                     {hasActiveFilters ? "Brak zamówień pasujących do filtrów." : "Brak zamówień. Dodaj pierwsze."}
                   </td>
                 </tr>
@@ -278,8 +282,15 @@ if (!user) {
                       {formatMoney(o.order_value)} {o.currency_code}
                     </td>
                     <td class="px-4 py-3">{o.container_number ?? "—"}</td>
-                    <td class="px-4 py-3">{o.eta_port_date ?? "—"}</td>
-                    <td class="px-4 py-3">{o.eta_destination_date ?? "—"}</td>
+                    <td class="px-4 py-3 whitespace-nowrap">{o.eta_port_date ?? "—"}</td>
+                    <td class="px-4 py-3 whitespace-nowrap">{o.eta_destination_date ?? "—"}</td>
+                    <td class="px-4 py-3">
+                      {o.supplier_lab_results === 1 && (
+                        <span title="Badania od dostawcy: są">
+                          <FlaskConical className="size-4 text-emerald-300" aria-label="Badania od dostawcy: są" />
+                        </span>
+                      )}
+                    </td>
                     <td class="px-4 py-3 text-blue-100/70">{o.created_by}</td>
                     <td class="px-4 py-3">
                       <div class="flex items-center gap-3">
