@@ -43,6 +43,9 @@ const OVERDUE_PAYMENT_SQL = `(
 // Matches the "W realizacji" status dot shown in the orders list/report: not blocked and not yet delivered.
 const IN_PROGRESS_SQL = `(is_blocked = 0 AND delivery_date IS NULL)`;
 
+// NULL counts as missing too — only an explicit "Tak" means the supplier sent lab results.
+const MISSING_SUPPLIER_LAB_SQL = `(COALESCE(supplier_lab_results, 0) = 0)`;
+
 export type PurchaseOrderWithFlag = PurchaseOrderRow & { needs_attention: 0 | 1 };
 
 export interface OrderFilters {
@@ -56,6 +59,7 @@ export interface OrderFilters {
   onlyBlocked: boolean;
   onlyOverduePayment: boolean;
   onlyInProgress: boolean;
+  onlyMissingSupplierLabResults: boolean;
 }
 
 const emptyFilters: OrderFilters = {
@@ -69,6 +73,7 @@ const emptyFilters: OrderFilters = {
   onlyBlocked: false,
   onlyOverduePayment: false,
   onlyInProgress: false,
+  onlyMissingSupplierLabResults: false,
 };
 
 // Filters travel as URL query params and are never persisted server-side, so the view stays
@@ -94,6 +99,7 @@ export function listOrders(filters: Partial<OrderFilters> = {}): PurchaseOrderWi
          AND (@onlyBlocked = 0 OR is_blocked = 1)
          AND (@onlyOverduePayment = 0 OR ${OVERDUE_PAYMENT_SQL})
          AND (@onlyInProgress = 0 OR ${IN_PROGRESS_SQL})
+         AND (@onlyMissingSupplierLabResults = 0 OR ${MISSING_SUPPLIER_LAB_SQL})
        ORDER BY created_at DESC`,
     )
     .all({
@@ -102,6 +108,7 @@ export function listOrders(filters: Partial<OrderFilters> = {}): PurchaseOrderWi
       onlyBlocked: f.onlyBlocked ? 1 : 0,
       onlyOverduePayment: f.onlyOverduePayment ? 1 : 0,
       onlyInProgress: f.onlyInProgress ? 1 : 0,
+      onlyMissingSupplierLabResults: f.onlyMissingSupplierLabResults ? 1 : 0,
     }) as PurchaseOrderWithFlag[];
 }
 
@@ -399,6 +406,7 @@ export interface DashboardStats {
   needsAttentionCount: number;
   blockedCount: number;
   overduePaymentCount: number;
+  missingSupplierLabResultsCount: number;
   inProgressTotals: CurrencyTotal[];
 }
 
@@ -414,6 +422,9 @@ export function getDashboardStats(): DashboardStats {
   const overduePaymentCount = (
     db.prepare(`SELECT COUNT(*) AS c FROM purchase_orders WHERE ${OVERDUE_PAYMENT_SQL}`).get() as { c: number }
   ).c;
+  const missingSupplierLabResultsCount = (
+    db.prepare(`SELECT COUNT(*) AS c FROM purchase_orders WHERE ${MISSING_SUPPLIER_LAB_SQL}`).get() as { c: number }
+  ).c;
   const inProgressTotals = db
     .prepare(
       `SELECT currency_code AS currencyCode, SUM(order_value) AS total FROM purchase_orders
@@ -423,5 +434,5 @@ export function getDashboardStats(): DashboardStats {
     )
     .all() as CurrencyTotal[];
 
-  return { needsAttentionCount, blockedCount, overduePaymentCount, inProgressTotals };
+  return { needsAttentionCount, blockedCount, overduePaymentCount, missingSupplierLabResultsCount, inProgressTotals };
 }

@@ -3,7 +3,7 @@ import Layout from "@/layouts/Layout.astro";
 import AppNav from "@/components/AppNav.astro";
 import { getDashboardStats } from "@/lib/orders";
 import { formatMoney } from "@/lib/money";
-import { TriangleAlert, Ban, CircleDollarSign, Wallet } from "lucide-react";
+import { TriangleAlert, Ban, CircleDollarSign, Wallet, FlaskConicalOff } from "lucide-react";
 
 const { user } = Astro.locals;
 if (!user) {
@@ -22,7 +22,7 @@ const stats = getDashboardStats();
         Dashboard
       </h1>
 
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <a
           href="/orders?attention=1"
           class="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur-xl transition-colors hover:bg-white/15"
@@ -69,6 +69,15 @@ const stats = getDashboardStats();
             )
           }
           <div class="mt-1 text-sm text-blue-100/70">Wartość zamówień w toku</div>
+        </a>
+
+        <a
+          href="/orders?no_supplier_lab=1"
+          class="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur-xl transition-colors hover:bg-white/15"
+        >
+          <FlaskConicalOff className="mb-3 size-6 text-sky-300" />
+          <div class="text-3xl font-bold text-white">{stats.missingSupplierLabResultsCount}</div>
+          <div class="mt-1 text-sm text-blue-100/70">Brak badań dostawcy</div>
         </a>
       </div>
     </div>

@@ -171,6 +171,16 @@ describe("listOrders filters (FR-005)", () => {
     expect(results[0].is_blocked).toBe(1);
   });
 
+  it("onlyMissingSupplierLabResults returns orders without supplier lab results (0 or NULL)", () => {
+    createOrder(baseInput({ supplierLabResults: 1 }));
+    createOrder(baseInput({ supplierLabResults: 0 }));
+    createOrder(baseInput({ supplierLabResults: null }));
+
+    const results = listOrders({ onlyMissingSupplierLabResults: true });
+    expect(results).toHaveLength(2);
+    expect(results.every((o) => o.supplier_lab_results !== 1)).toBe(true);
+  });
+
   it("onlyOverduePayment returns orders with a past due date and no payment yet", () => {
     createOrder(baseInput({ paymentDueDate: daysFromNow(-5) }));
     createOrder(baseInput({ paymentDueDate: daysFromNow(5) }));
@@ -243,11 +253,13 @@ describe("getDashboardStats", () => {
     createOrder(baseInput({ isBlocked: 1 }));
     createOrder(baseInput({ paymentDueDate: daysFromNow(-1) }));
     createOrder(baseInput({ isImportant: 1, currencyCode: "USD", orderValue: 10_000 }));
+    createOrder(baseInput({ supplierLabResults: 1 }));
 
     const stats = getDashboardStats();
     expect(stats.blockedCount).toBe(1);
     expect(stats.overduePaymentCount).toBe(1);
     expect(stats.needsAttentionCount).toBe(1);
+    expect(stats.missingSupplierLabResultsCount).toBe(3);
     expect(stats.inProgressTotals.find((t) => t.currencyCode === "USD")?.total).toBe(10_000);
   });
 });

@@ -19,6 +19,7 @@ const filters = {
   onlyBlocked: queryParam(Astro.url, "blocked") === "1",
   onlyOverduePayment: queryParam(Astro.url, "overdue_payment") === "1",
   onlyInProgress: queryParam(Astro.url, "in_progress") === "1",
+  onlyMissingSupplierLabResults: queryParam(Astro.url, "no_supplier_lab") === "1",
 };
 const hasActiveFilters = Object.values(filters).some((v) => v !== null && v !== false);
 
@@ -186,6 +187,17 @@ if (!user) {
               class="size-4 rounded border-white/30 bg-white/10 text-purple-500 focus:ring-purple-400"
             />
             Płatność po terminie
+          </label>
+          <label for="no_supplier_lab" class="flex items-center gap-2 text-xs text-blue-100/80">
+            <input
+              id="no_supplier_lab"
+              name="no_supplier_lab"
+              type="checkbox"
+              value="1"
+              checked={filters.onlyMissingSupplierLabResults}
+              class="size-4 rounded border-white/30 bg-white/10 text-purple-500 focus:ring-purple-400"
+            />
+            Brak badań dostawcy
           </label>
           {
             hasActiveFilters && (
