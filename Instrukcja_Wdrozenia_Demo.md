@@ -7,6 +7,15 @@
 | Data przygotowania         | 2026-11-08                                                                         |
 | Środowisko                 | serwer demo klienta (`<ADRES_DEMO>`), Docker + docker compose, reverse proxy nginx |
 
+## 0. Konto i uprawnienia
+
+Całe wdrożenie wykonuj ze zwykłego konta administratora serwera, `<UZYTKOWNIK>` (zob. punkt 2): przesyłanie plików z Windows przez WinSCP, logowanie przez SSH i polecenia na serwerze. **Nie loguj się jako root.** Wtedy pomyłka w poleceniu `rm` lub `unzip` w złym katalogu nie ma pełnych uprawnień.
+
+- `<UZYTKOWNIK>` musi należeć do grupy `docker` (sprawdź poleceniem `id`). Wtedy `docker build`, `docker tag`, `docker run` i `docker compose` działają **bez `sudo`**, co potwierdzi polecenie `docker ps`. Jeśli zgłasza `permission denied`, wyloguj się i zaloguj ponownie, bo członkostwo w grupie działa dopiero w nowej sesji.
+- Konto, z którego uruchamiasz `docker build`, nie ma wpływu na obraz. Obraz i tak buduje demon Dockera, a właściciela plików w obrazie ustala `Dockerfile` (użytkownik `app`).
+- `<KATALOG_ZRODEL>` i `<KATALOG_KOPII>` powinny należeć do `<UZYTKOWNIK>`, np. `~/mini-dm-src` i `~/kopie-mini-dm`.
+- **`sudo` jest potrzebne tylko** przy operacjach na plikach bazy w `<KATALOG_DANYCH>`, jeśli nie należą one do `<UZYTKOWNIK>`. Dotyczy to `chmod` w kroku 6 oraz przywracania bazy w kroku 9. W tych miejscach polecenia mają już `sudo`.
+
 ## 1. Co zawiera to wdrożenie
 
 Zmiany względem `95062ff`:
@@ -27,12 +36,16 @@ Zmiany względem `95062ff`:
 
 ## 2. Oznaczenia używane w instrukcji
 
-| Symbol              | Znaczenie                                                                           |
-| ------------------- | ----------------------------------------------------------------------------------- |
-| `<KATALOG_ZRODEL>`  | katalog na serwerze, w którym budowany jest obraz (kopia repozytorium)              |
-| `<KATALOG_COMPOSE>` | katalog z plikiem `docker-compose.yml`, w którym zdefiniowana jest usługa `mini-dm` |
-| `<KATALOG_DANYCH>`  | katalog z bazą SQLite, podmontowany w kontenerze jako `/app/data`                   |
-| `<KATALOG_KOPII>`   | dowolny katalog na kopie zapasowe, poza `<KATALOG_DANYCH>`                          |
+| Symbol              | Znaczenie                                                                                             |
+| ------------------- | ----------------------------------------------------------------------------------------------------- |
+| `<UZYTKOWNIK>`      | zwykłe (nie-root) konto na serwerze, w grupie `docker`, używane też w WinSCP                          |
+| `<ADRES_DEMO>`      | domena, pod którą działa serwer demo                                                                  |
+| `<KATALOG_ZRODEL>`  | katalog na serwerze, w którym budowany jest obraz (kopia repozytorium)                                |
+| `<KATALOG_COMPOSE>` | katalog z plikiem `docker-compose.yml`, w którym zdefiniowana jest usługa `mini-dm`                   |
+| `<KATALOG_DANYCH>`  | katalog z bazą SQLite, podmontowany w kontenerze jako `/app/data` (bind mount z `docker-compose.yml`) |
+| `<KATALOG_KOPII>`   | dowolny katalog na kopie zapasowe, poza `<KATALOG_DANYCH>`                                            |
+
+Rzeczywiste wartości tych oznaczeń celowo nie są zapisane w repozytorium. Ścieżki odczytasz z `docker-compose.yml` na serwerze.
 
 Instrukcja zakłada, że usługa `mini-dm` w `docker-compose.yml` korzysta z obrazu `mini-dm:latest`, tak jak przy poprzednich wdrożeniach.
 
@@ -46,7 +59,7 @@ git archive --format=zip -o mini-dm-d1b958a.zip d1b958a
 
 `git archive` pakuje tylko pliki śledzone przez git. W paczce nie ma więc `node_modules`, `dist`, `.astro`, `data`, `.env*` ani lokalnych konfiguracji.
 
-Skopiuj `mini-dm-d1b958a.zip` na serwer. Następnie wyczyść `<KATALOG_ZRODEL>` ze starych plików źródłowych i rozpakuj tam paczkę:
+Skopiuj `mini-dm-d1b958a.zip` na serwer przez WinSCP, logując się jako `<UZYTKOWNIK>`, do katalogu domowego (`~`). Następnie wyczyść `<KATALOG_ZRODEL>` ze starych plików źródłowych i rozpakuj tam paczkę:
 
 ```bash
 cd <KATALOG_ZRODEL>
@@ -114,7 +127,7 @@ ls -l <KATALOG_DANYCH>/
 Jeśli pliki `mini-dm.db*` nie mają praw zapisu dla „others” (`-rw-rw-rw-`), wykonaj:
 
 ```bash
-chmod 666 <KATALOG_DANYCH>/mini-dm.db*
+sudo chmod 666 <KATALOG_DANYCH>/mini-dm.db*
 ```
 
 Sam katalog również musi być zapisywalny dla kontenera (wcześniej miał prawa `777`).
@@ -182,9 +195,9 @@ cd <KATALOG_COMPOSE>
 docker compose stop mini-dm
 
 # usuń bieżące pliki -wal/-shm, żeby nie zostały po nowej wersji
-rm -f <KATALOG_DANYCH>/mini-dm.db-wal <KATALOG_DANYCH>/mini-dm.db-shm
-cp -a <KATALOG_KOPII>/mini-dm-<STAMP>/mini-dm.db* <KATALOG_DANYCH>/
-chmod 666 <KATALOG_DANYCH>/mini-dm.db*
+sudo rm -f <KATALOG_DANYCH>/mini-dm.db-wal <KATALOG_DANYCH>/mini-dm.db-shm
+sudo cp -a <KATALOG_KOPII>/mini-dm-<STAMP>/mini-dm.db* <KATALOG_DANYCH>/
+sudo chmod 666 <KATALOG_DANYCH>/mini-dm.db*
 
 docker tag mini-dm:prev mini-dm:latest
 docker compose up -d mini-dm
