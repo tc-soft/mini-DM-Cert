@@ -5,4 +5,8 @@ export const DOC_PDF_PAIRS = [
     md: "SQLite_Baza_Zamowien_Dokumentacja_v0.3.md",
     pdf: "SQLite_Baza_Zamowien_Dokumentacja_v03.pdf",
   },
+  {
+    md: "Instrukcja_Wdrozenia_Demo.md",
+    pdf: "Instrukcja_Wdrozenia_Demo.pdf",
+  },
 ];
