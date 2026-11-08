@@ -2,20 +2,28 @@
 
 |                            |                                                                                    |
 | -------------------------- | ---------------------------------------------------------------------------------- |
-| Wersja aplikacji           | commit `95062ff` (gałąź `main`)                                                    |
-| Poprzednio wdrożona wersja | sprzed migracji nr 4 (wdrożenie z 2026-10-25)                                      |
+| Wersja aplikacji           | commit `d1b958a` (gałąź `main`)                                                    |
+| Poprzednio wdrożona wersja | commit `95062ff` (wdrożenie z 2026-11-08)                                          |
 | Data przygotowania         | 2026-11-08                                                                         |
 | Środowisko                 | serwer demo klienta (`<ADRES_DEMO>`), Docker + docker compose, reverse proxy nginx |
 
 ## 1. Co zawiera to wdrożenie
 
-1. **Nowe pole „Badania laboratoryjne od dostawcy”** (`supplier_lab_results`) w formularzu edycji zamówienia oraz przeniesienie pola „Zablokowane” na dół formularza.
-2. **Migracja bazy nr 4**, która **przebudowuje tabelę `purchase_orders`**: tworzy nową tabelę, kopiuje dane, usuwa starą i odtwarza indeksy. Istniejące zamówienia dostają `supplier_lab_results = 0`. Migracja uruchamia się automatycznie przy pierwszym starcie nowej wersji, w jednej transakcji. Jeśli się nie powiedzie, zmiany są wycofywane i aplikacja nie wystartuje.
-3. **Poszerzony layout** stron po zalogowaniu. Daty ETA na liście zamówień już się nie zawijają, a na liście jest nowa kolumna z ikoną kolby (badania od dostawcy).
+Zmiany względem `95062ff`:
 
-Nie zmieniają się zmienne środowiskowe, port (4321) ani konfiguracja `docker-compose.yml` i nginx.
+1. **Filtr „Brak badań dostawcy”** na liście zamówień, jako ostatni checkbox. Pokazuje zamówienia, które nie mają zaznaczonego pola „Badania laboratoryjne od dostawcy”.
+2. **Piąty kafelek na Dashboardzie: „Brak badań dostawcy”**, z liczbą takich zamówień. Kliknięcie otwiera listę zamówień z włączonym tym filtrem.
 
-> **Ważne:** to pierwsza migracja, która przebudowuje tabelę zamiast tylko dodać kolumnę. **Kopia zapasowa bazy (krok 4) jest obowiązkowa.**
+**To wdrożenie nie zmienia struktury bazy**, bo nie zawiera nowej migracji. Nie zmieniają się też zmienne środowiskowe, port (4321) ani konfiguracja `docker-compose.yml` i nginx.
+
+> **Jeśli serwer ma wersję starszą niż `95062ff`** (sprzed migracji nr 4), to wdrożenie zawiera też wszystko z `95062ff`:
+>
+> - pole „Badania laboratoryjne od dostawcy”,
+> - przeniesione pole „Zablokowane”,
+> - poszerzony layout,
+> - **migrację nr 4, która przebudowuje tabelę `purchase_orders`**.
+>
+> W takim przypadku kopia zapasowa bazy (krok 4) jest absolutnie obowiązkowa. Różnice w oczekiwanych wynikach opisują uwagi „_starsza wersja_” w krokach 4.4, 8 i 9.
 
 ## 2. Oznaczenia używane w instrukcji
 
@@ -26,30 +34,30 @@ Nie zmieniają się zmienne środowiskowe, port (4321) ani konfiguracja `docker-
 | `<KATALOG_DANYCH>`  | katalog z bazą SQLite, podmontowany w kontenerze jako `/app/data`                   |
 | `<KATALOG_KOPII>`   | dowolny katalog na kopie zapasowe, poza `<KATALOG_DANYCH>`                          |
 
-Instrukcja zakłada, że usługa `mini-dm` w `docker-compose.yml` korzysta z obrazu `mini-dm:latest`, tak jak przy poprzednim wdrożeniu.
+Instrukcja zakłada, że usługa `mini-dm` w `docker-compose.yml` korzysta z obrazu `mini-dm:latest`, tak jak przy poprzednich wdrożeniach.
 
 ## 3. Przygotowanie paczki ze źródłami (lokalnie)
 
 Na komputerze deweloperskim, w katalogu projektu:
 
 ```bash
-git archive --format=zip -o mini-dm-95062ff.zip 95062ff
+git archive --format=zip -o mini-dm-d1b958a.zip d1b958a
 ```
 
 `git archive` pakuje tylko pliki śledzone przez git. W paczce nie ma więc `node_modules`, `dist`, `.astro`, `data`, `.env*` ani lokalnych konfiguracji.
 
-Skopiuj `mini-dm-95062ff.zip` na serwer. Następnie wyczyść `<KATALOG_ZRODEL>` ze starych plików źródłowych i rozpakuj tam paczkę:
+Skopiuj `mini-dm-d1b958a.zip` na serwer. Następnie wyczyść `<KATALOG_ZRODEL>` ze starych plików źródłowych i rozpakuj tam paczkę:
 
 ```bash
 cd <KATALOG_ZRODEL>
-unzip -o ~/mini-dm-95062ff.zip
+unzip -o ~/mini-dm-d1b958a.zip
 ```
 
 > Nigdy nie rozpakowuj paczki do `<KATALOG_DANYCH>` i nie czyść tego katalogu.
 
 ## 4. Zatrzymanie aplikacji i kopia zapasowa bazy
 
-**4.1.** Zachowaj obecny obraz pod osobną nazwą, żeby można było do niego wrócić:
+**4.1.** Zachowaj obecny obraz pod osobną nazwą, żeby można było do niego wrócić. Jeśli `mini-dm:prev` został po poprzednim wdrożeniu, zostanie nadpisany, i tak ma być.
 
 ```bash
 docker tag mini-dm:latest mini-dm:prev
@@ -71,7 +79,7 @@ cp -a <KATALOG_DANYCH>/mini-dm.db* <KATALOG_KOPII>/mini-dm-$STAMP/
 ls -l <KATALOG_KOPII>/mini-dm-$STAMP/
 ```
 
-**4.4.** Zanotuj stan bazy przed migracją. Polecenie uruchamia na chwilę stary obraz w trybie tylko do odczytu:
+**4.4.** Zanotuj stan bazy przed wdrożeniem. Polecenie uruchamia na chwilę stary obraz w trybie tylko do odczytu:
 
 ```bash
 docker run --rm -v <KATALOG_DANYCH>:/app/data mini-dm:prev node -e '
@@ -82,7 +90,9 @@ console.log("migracje:  ", db.prepare("SELECT version FROM schema_migrations ORD
 '
 ```
 
-Zapisz liczby `zamowienia` i `historia`. Pole `migracje` powinno pokazać `1,2,3`.
+Zapisz liczby `zamowienia` i `historia`. Pole `migracje` powinno pokazać `1,2,3,4`.
+
+_Starsza wersja:_ jeśli `migracje` pokazuje `1,2,3`, serwer ma wersję sprzed migracji nr 4 (zob. uwagę w punkcie 1).
 
 ## 5. Budowa nowego obrazu
 
@@ -95,7 +105,7 @@ Budowa powinna zakończyć się bez błędów. Etap `npm run build` jest w niej 
 
 ## 6. Kontrola uprawnień do plików bazy
 
-Kontener działa jako nieuprzywilejowany użytkownik `app`. Przy poprzednim wdrożeniu pliki bazy należały do innego użytkownika z prawami `644`. Aplikacja wtedy startowała i wyświetlała dane, ale **pierwszy zapis kończył się błędem**.
+Kontener działa jako nieuprzywilejowany użytkownik `app`. Przy jednym z wcześniejszych wdrożeń pliki bazy należały do innego użytkownika z prawami `644`. Aplikacja wtedy startowała i wyświetlała dane, ale **pierwszy zapis kończył się błędem**.
 
 ```bash
 ls -l <KATALOG_DANYCH>/
@@ -117,7 +127,7 @@ docker compose up -d mini-dm
 docker compose logs --tail 50 mini-dm
 ```
 
-W logach **nie** powinno być błędów typu `Migration 4 ...`, `SQLITE_...` ani `foreign key violation`. Migracja nie wypisuje komunikatu o sukcesie, więc brak błędów i działający serwer oznaczają, że się udała.
+W logach **nie** powinno być błędów typu `Migration ...`, `SQLITE_...` ani `foreign key violation`. Migracje nie wypisują komunikatu o sukcesie, więc brak błędów i działający serwer oznaczają, że start się udał.
 
 ## 8. Weryfikacja
 
@@ -129,7 +139,7 @@ const db = require("better-sqlite3")("/app/data/mini-dm.db", { readonly: true, f
 console.log("zamowienia:", db.prepare("SELECT COUNT(*) AS c FROM purchase_orders").get().c);
 console.log("historia:  ", db.prepare("SELECT COUNT(*) AS c FROM purchase_order_history").get().c);
 console.log("migracje:  ", db.prepare("SELECT version FROM schema_migrations ORDER BY version").all().map(r => r.version).join(","));
-console.log("kolumny:   ", db.prepare("PRAGMA table_info(purchase_orders)").all().map(c => c.name).join(", "));
+console.log("bez badan: ", db.prepare("SELECT COUNT(*) AS c FROM purchase_orders WHERE COALESCE(supplier_lab_results, 0) = 0").get().c);
 '
 ```
 
@@ -137,14 +147,16 @@ Oczekiwany wynik:
 
 - `zamowienia` i `historia` mają **te same liczby** co w kroku 4.4,
 - `migracje` pokazuje `1,2,3,4`,
-- w `kolumny` pole `supplier_lab_results` jest zaraz po `test_results`, a `is_blocked` zaraz po `notes`.
+- zanotuj liczbę `bez badan`. To ona powinna być widoczna na nowym kafelku Dashboardu w kroku 8.2.
+
+_Starsza wersja:_ `migracje` zmienia się z `1,2,3` na `1,2,3,4`, a liczby zamówień i historii pozostają te same.
 
 **8.2. Aplikacja w przeglądarce** (`https://<ADRES_DEMO>`):
 
-1. Zaloguj się. Strona Dashboard powinna się wyświetlić, a strony powinny być nieco szersze niż wcześniej.
-2. Otwórz **Zamówienia**. Daty „ETA port” i „ETA cel” są w jednej linii, a po „ETA cel” jest kolumna z ikoną kolby (na razie pusta).
-3. **Test zapisu (obowiązkowy):** otwórz edycję dowolnego zamówienia. Pole „Zablokowane” jest na dole formularza, pod „Uwagami”. Zaznacz „Badania laboratoryjne od dostawcy” i zapisz.
-4. Wróć do listy. Przy tym zamówieniu powinna być zielona kolba.
+1. Zaloguj się. Na **Dashboardzie** w jednym rzędzie widać 5 kafelków. Ostatni, „Brak badań dostawcy” z przekreśloną kolbą, pokazuje liczbę `bez badan` z kroku 8.1.
+2. Kliknij ten kafelek. Otwiera się lista **Zamówień** z zaznaczonym ostatnim checkboxem „Brak badań dostawcy”. Licznik wyników jest równy liczbie z kafelka i żadne zamówienie na liście nie ma zielonej kolby.
+3. **Test zapisu (obowiązkowy):** otwórz edycję jednego z tych zamówień, zaznacz „Badania laboratoryjne od dostawcy” i zapisz.
+4. Wróć do listy z filtrem „Brak badań dostawcy”. Tego zamówienia już na niej nie ma, a liczba na kafelku Dashboardu zmniejszyła się o 1.
 5. Ponownie otwórz edycję tego zamówienia. W historii zmian powinien być wpis „Badania laboratoryjne od dostawcy: Nie → Tak”.
 6. Jeśli to zamówienie testowe klienta, odznacz pole i zapisz ponownie, żeby przywrócić poprzedni stan.
 
@@ -152,28 +164,36 @@ Wdrożenie jest zakończone dopiero po udanym teście zapisu (punkty 3–5), a n
 
 ## 9. Wycofanie zmian (rollback)
 
-Wykonaj te kroki tylko wtedy, gdy krok 7 lub 8 się nie powiedzie:
+Wykonaj te kroki tylko wtedy, gdy krok 7 lub 8 się nie powiedzie.
+
+To wdrożenie nie zmienia struktury bazy, więc zwykle wystarczy **powrót do poprzedniego obrazu**, a dane wprowadzone w międzyczasie zostają zachowane:
 
 ```bash
 cd <KATALOG_COMPOSE>
-docker compose stop mini-dm
-
-# przywrócenie bazy z kopii (usuń bieżące pliki -wal/-shm, żeby nie zostały po nowej wersji)
-rm -f <KATALOG_DANYCH>/mini-dm.db-wal <KATALOG_DANYCH>/mini-dm.db-shm
-cp -a <KATALOG_KOPII>/mini-dm-<STAMP>/mini-dm.db* <KATALOG_DANYCH>/
-chmod 666 <KATALOG_DANYCH>/mini-dm.db*
-
-# powrót do poprzedniego obrazu
 docker tag mini-dm:prev mini-dm:latest
 docker compose up -d mini-dm
 docker compose logs --tail 50 mini-dm
 ```
 
-Po rollbacku powtórz sprawdzenie z kroku 4.4 na obrazie `mini-dm:latest`. Powinno ono pokazać `migracje: 1,2,3` i te same liczby co przed wdrożeniem.
+**Bazę z kopii przywracaj** tylko wtedy, gdy jest uszkodzona albo serwer miał _starszą wersję_ (`migracje: 1,2,3` w kroku 4.4). Dane wprowadzone po kroku 7 zostaną wtedy utracone. Przywróć bazę **razem** z obrazem:
 
-> Przywróć **bazę i obraz razem**. Po rollbacku dane wprowadzone w nowej wersji, między krokiem 7 a rollbackiem, zostaną utracone.
+```bash
+cd <KATALOG_COMPOSE>
+docker compose stop mini-dm
+
+# usuń bieżące pliki -wal/-shm, żeby nie zostały po nowej wersji
+rm -f <KATALOG_DANYCH>/mini-dm.db-wal <KATALOG_DANYCH>/mini-dm.db-shm
+cp -a <KATALOG_KOPII>/mini-dm-<STAMP>/mini-dm.db* <KATALOG_DANYCH>/
+chmod 666 <KATALOG_DANYCH>/mini-dm.db*
+
+docker tag mini-dm:prev mini-dm:latest
+docker compose up -d mini-dm
+docker compose logs --tail 50 mini-dm
+```
+
+Po rollbacku powtórz sprawdzenie z kroku 4.4 na obrazie `mini-dm:latest`. Liczby i lista migracji powinny być takie same jak przed wdrożeniem.
 
 ## 10. Po udanym wdrożeniu
 
 - Zostaw kopię z kroku 4.3 i obraz `mini-dm:prev` przez kilka dni. Gdy klient potwierdzi, że wszystko działa, możesz usunąć obraz poleceniem `docker image rm mini-dm:prev`.
-- Usuń paczkę `mini-dm-95062ff.zip` z serwera.
+- Usuń paczkę `mini-dm-d1b958a.zip` z serwera.
