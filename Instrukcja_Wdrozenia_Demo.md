@@ -2,8 +2,8 @@
 
 |                            |                                                                                    |
 | -------------------------- | ---------------------------------------------------------------------------------- |
-| Wersja aplikacji           | commit `d1b958a` (gałąź `main`)                                                    |
-| Poprzednio wdrożona wersja | commit `95062ff` (wdrożenie z 2026-11-08)                                          |
+| Wersja aplikacji           | commit `69b80f5` (gałąź `main`)                                                    |
+| Poprzednio wdrożona wersja | commit `d1b958a` (wdrożenie z 2026-11-08)                                          |
 | Data przygotowania         | 2026-11-08                                                                         |
 | Środowisko                 | serwer demo klienta (`<ADRES_DEMO>`), Docker + docker compose, reverse proxy nginx |
 
@@ -18,14 +18,19 @@ Całe wdrożenie wykonuj ze zwykłego konta administratora serwera, `<UZYTKOWNIK
 
 ## 1. Co zawiera to wdrożenie
 
-Zmiany względem `95062ff`:
+Zmiany względem `d1b958a`:
 
-1. **Filtr „Brak badań dostawcy”** na liście zamówień, jako ostatni checkbox. Pokazuje zamówienia, które nie mają zaznaczonego pola „Badania laboratoryjne od dostawcy”.
-2. **Piąty kafelek na Dashboardzie: „Brak badań dostawcy”**, z liczbą takich zamówień. Kliknięcie otwiera listę zamówień z włączonym tym filtrem.
+1. **Dymek z powodem oznaczenia „wymaga uwagi”.** Po najechaniu kursorem na żółty trójkąt na liście zamówień lub w raporcie pojawia się opis, np. „Wymaga uwagi: Dostawa zakończona, brak wyniku badań”. Gdy pasuje kilka reguł, dymek wymienia wszystkie:
+   - „Oznaczone ręcznie jako ważne”,
+   - „ETA cel w ciągu 3 dni lub minęła, brak daty dostawy”,
+   - „Dostawa zakończona, brak wyniku badań”.
+2. Same reguły oznaczania się **nie zmieniają**. Filtr „Tylko wymagające uwagi” i kafelek Dashboardu pokazują te same liczby co przed wdrożeniem.
+
+Dymek wyjaśnia sytuację zgłoszoną po poprzednim wdrożeniu: po odznaczeniu „Oznacz jako ważne / wymagające uwagi” zamówienie może nadal być podświetlone, bo spełnia regułę automatyczną.
 
 **To wdrożenie nie zmienia struktury bazy**, bo nie zawiera nowej migracji. Nie zmieniają się też zmienne środowiskowe, port (4321) ani konfiguracja `docker-compose.yml` i nginx.
 
-> **Jeśli serwer ma wersję starszą niż `95062ff`** (sprzed migracji nr 4), to wdrożenie zawiera też wszystko z `95062ff`:
+> **Jeśli serwer ma wersję starszą niż `d1b958a`**, to wdrożenie zawiera też filtr i kafelek „Brak badań dostawcy” (`d1b958a`). Jeśli jest starsza niż `95062ff` (sprzed migracji nr 4), zawiera ponadto:
 >
 > - pole „Badania laboratoryjne od dostawcy”,
 > - przeniesione pole „Zablokowane”,
@@ -54,16 +59,16 @@ Instrukcja zakłada, że usługa `mini-dm` w `docker-compose.yml` korzysta z obr
 Na komputerze deweloperskim, w katalogu projektu:
 
 ```bash
-git archive --format=zip -o mini-dm-d1b958a.zip d1b958a
+git archive --format=zip -o mini-dm-69b80f5.zip 69b80f5
 ```
 
 `git archive` pakuje tylko pliki śledzone przez git. W paczce nie ma więc `node_modules`, `dist`, `.astro`, `data`, `.env*` ani lokalnych konfiguracji.
 
-Skopiuj `mini-dm-d1b958a.zip` na serwer przez WinSCP, logując się jako `<UZYTKOWNIK>`, do katalogu domowego (`~`). Następnie wyczyść `<KATALOG_ZRODEL>` ze starych plików źródłowych i rozpakuj tam paczkę:
+Skopiuj `mini-dm-69b80f5.zip` na serwer przez WinSCP, logując się jako `<UZYTKOWNIK>`, do katalogu domowego (`~`). Następnie wyczyść `<KATALOG_ZRODEL>` ze starych plików źródłowych i rozpakuj tam paczkę:
 
 ```bash
 cd <KATALOG_ZRODEL>
-unzip -o ~/mini-dm-d1b958a.zip
+unzip -o ~/mini-dm-69b80f5.zip
 ```
 
 > Nigdy nie rozpakowuj paczki do `<KATALOG_DANYCH>` i nie czyść tego katalogu.
@@ -152,26 +157,23 @@ const db = require("better-sqlite3")("/app/data/mini-dm.db", { readonly: true, f
 console.log("zamowienia:", db.prepare("SELECT COUNT(*) AS c FROM purchase_orders").get().c);
 console.log("historia:  ", db.prepare("SELECT COUNT(*) AS c FROM purchase_order_history").get().c);
 console.log("migracje:  ", db.prepare("SELECT version FROM schema_migrations ORDER BY version").all().map(r => r.version).join(","));
-console.log("bez badan: ", db.prepare("SELECT COUNT(*) AS c FROM purchase_orders WHERE COALESCE(supplier_lab_results, 0) = 0").get().c);
 '
 ```
 
 Oczekiwany wynik:
 
 - `zamowienia` i `historia` mają **te same liczby** co w kroku 4.4,
-- `migracje` pokazuje `1,2,3,4`,
-- zanotuj liczbę `bez badan`. To ona powinna być widoczna na nowym kafelku Dashboardu w kroku 8.2.
+- `migracje` pokazuje `1,2,3,4`.
 
 _Starsza wersja:_ `migracje` zmienia się z `1,2,3` na `1,2,3,4`, a liczby zamówień i historii pozostają te same.
 
 **8.2. Aplikacja w przeglądarce** (`https://<ADRES_DEMO>`):
 
-1. Zaloguj się. Na **Dashboardzie** w jednym rzędzie widać 5 kafelków. Ostatni, „Brak badań dostawcy” z przekreśloną kolbą, pokazuje liczbę `bez badan` z kroku 8.1.
-2. Kliknij ten kafelek. Otwiera się lista **Zamówień** z zaznaczonym ostatnim checkboxem „Brak badań dostawcy”. Licznik wyników jest równy liczbie z kafelka i żadne zamówienie na liście nie ma zielonej kolby.
-3. **Test zapisu (obowiązkowy):** otwórz edycję jednego z tych zamówień, zaznacz „Badania laboratoryjne od dostawcy” i zapisz.
-4. Wróć do listy z filtrem „Brak badań dostawcy”. Tego zamówienia już na niej nie ma, a liczba na kafelku Dashboardu zmniejszyła się o 1.
-5. Ponownie otwórz edycję tego zamówienia. W historii zmian powinien być wpis „Badania laboratoryjne od dostawcy: Nie → Tak”.
-6. Jeśli to zamówienie testowe klienta, odznacz pole i zapisz ponownie, żeby przywrócić poprzedni stan.
+1. Zaloguj się. Kafelek „Wymagające uwagi” na **Dashboardzie** pokazuje tę samą liczbę co przed wdrożeniem.
+2. Na liście **Zamówień** najedź kursorem na żółty trójkąt przy kilku podświetlonych zamówieniach. Kursor zmienia się w znak zapytania, a dymek zaczyna się od „Wymaga uwagi:” i podaje co najmniej jeden powód. To samo sprawdź w zakładce **Raporty**.
+3. **Test zapisu (obowiązkowy):** otwórz edycję zamówienia, które **nie** jest podświetlone, zaznacz „Oznacz jako ważne / wymagające uwagi” i zapisz.
+4. Na liście zamówienie jest teraz podświetlone, a dymek nad trójkątem pokazuje „Wymaga uwagi: Oznaczone ręcznie jako ważne”. Liczba na kafelku „Wymagające uwagi” zwiększyła się o 1.
+5. Ponownie otwórz edycję tego zamówienia. W historii zmian powinien być wpis „Ważne: Nie → Tak”. Odznacz pole i zapisz, żeby przywrócić poprzedni stan. Podświetlenie i trójkąt znikają.
 
 Wdrożenie jest zakończone dopiero po udanym teście zapisu (punkty 3–5), a nie po samym wyświetleniu strony.
 
@@ -209,4 +211,4 @@ Po rollbacku powtórz sprawdzenie z kroku 4.4 na obrazie `mini-dm:latest`. Liczb
 ## 10. Po udanym wdrożeniu
 
 - Zostaw kopię z kroku 4.3 i obraz `mini-dm:prev` przez kilka dni. Gdy klient potwierdzi, że wszystko działa, możesz usunąć obraz poleceniem `docker image rm mini-dm:prev`.
-- Usuń paczkę `mini-dm-d1b958a.zip` z serwera.
+- Usuń paczkę `mini-dm-69b80f5.zip` z serwera.
