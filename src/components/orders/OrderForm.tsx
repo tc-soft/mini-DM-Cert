@@ -32,7 +32,7 @@ interface FormState {
   batchNumber: string;
   sentForTestingDate: string;
   testResults: string;
-  isBlocked: boolean;
+  supplierLabResults: boolean;
   takenForProduction: boolean;
   paymentDueDate: string;
   invoiceNumber: string;
@@ -40,6 +40,7 @@ interface FormState {
   deliveryDate: string;
   isImportant: boolean;
   notes: string;
+  isBlocked: boolean;
 }
 
 const initialState: FormState = {
@@ -58,7 +59,7 @@ const initialState: FormState = {
   batchNumber: "",
   sentForTestingDate: "",
   testResults: "",
-  isBlocked: false,
+  supplierLabResults: false,
   takenForProduction: false,
   paymentDueDate: "",
   invoiceNumber: "",
@@ -66,6 +67,7 @@ const initialState: FormState = {
   deliveryDate: "",
   isImportant: false,
   notes: "",
+  isBlocked: false,
 };
 
 // Mirrors the server-side calculation in orders-form.ts (quantity × price) so the read-only
@@ -505,18 +507,18 @@ export default function OrderForm({
             </div>
 
             <div className="mt-4 flex flex-wrap gap-6">
-              <label htmlFor="is_blocked" className="flex items-center gap-2 text-sm text-blue-100/80">
+              <label htmlFor="supplier_lab_results" className="flex items-center gap-2 text-sm text-blue-100/80">
                 <input
-                  id="is_blocked"
-                  name="is_blocked"
+                  id="supplier_lab_results"
+                  name="supplier_lab_results"
                   type="checkbox"
-                  checked={form.isBlocked}
+                  checked={form.supplierLabResults}
                   onChange={(e) => {
-                    set("isBlocked", e.target.checked);
+                    set("supplierLabResults", e.target.checked);
                   }}
                   className="size-4 rounded border-white/30 bg-white/10 text-purple-500 focus:ring-purple-400"
                 />
-                Zablokowane
+                Badania laboratoryjne od dostawcy
               </label>
 
               <label htmlFor="taken_for_production" className="flex items-center gap-2 text-sm text-blue-100/80">
@@ -594,6 +596,22 @@ export default function OrderForm({
           className={inputClass}
         />
       </Field>
+
+      {isEdit && (
+        <label htmlFor="is_blocked" className="flex items-center gap-2 text-sm text-blue-100/80">
+          <input
+            id="is_blocked"
+            name="is_blocked"
+            type="checkbox"
+            checked={form.isBlocked}
+            onChange={(e) => {
+              set("isBlocked", e.target.checked);
+            }}
+            className="size-4 rounded border-white/30 bg-white/10 text-purple-500 focus:ring-purple-400"
+          />
+          Zablokowane
+        </label>
+      )}
 
       <ServerError message={serverError} />
 

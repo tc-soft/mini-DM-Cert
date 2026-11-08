@@ -51,7 +51,7 @@ function baseInput(overrides: Partial<NewOrderInput> = {}): NewOrderInput {
     batchNumber: null,
     sentForTestingDate: null,
     testResults: null,
-    isBlocked: 0,
+    supplierLabResults: 0,
     takenForProduction: 0,
     paymentDueDate: null,
     invoiceNumber: null,
@@ -59,6 +59,7 @@ function baseInput(overrides: Partial<NewOrderInput> = {}): NewOrderInput {
     deliveryDate: null,
     isImportant: 0,
     notes: null,
+    isBlocked: 0,
     createdBy: "tester",
     ...overrides,
   };
@@ -127,6 +128,18 @@ describe("updateOrder change history (FR-010)", () => {
     expect(labels).toContain("Towar");
     expect(labels).toContain("Zablokowane");
     expect(labels).not.toContain("Dostawca");
+  });
+
+  it("persists supplier_lab_results and records its change as Tak/Nie", () => {
+    createOrder(baseInput({}));
+    const [order] = listOrders();
+    expect(getOrderById(order.id)?.supplier_lab_results).toBe(0);
+
+    updateOrder(order.id, { ...baseInput({ supplierLabResults: 1 }), updatedBy: "editor" });
+
+    expect(getOrderById(order.id)?.supplier_lab_results).toBe(1);
+    const [entry] = getOrderHistory(order.id);
+    expect(entry.changes).toEqual([{ label: "Badania laboratoryjne od dostawcy", oldValue: "Nie", newValue: "Tak" }]);
   });
 
   it("records no history entry when nothing changed", () => {

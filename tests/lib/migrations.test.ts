@@ -3,6 +3,41 @@ import { describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { migrations, runMigrations } from "@/lib/migrations";
 
+// Matches the Lp. order in SQLite_Baza_Zamowien_Dokumentacja_v0.3.md, section 2.
+const EXPECTED_PURCHASE_ORDERS_COLUMNS = [
+  "id",
+  "order_number",
+  "product_name",
+  "supplier_name",
+  "quantity_kg",
+  "port_price_per_kg",
+  "delivered_price_per_kg",
+  "order_value",
+  "delivered_order_value",
+  "currency_code",
+  "container_number",
+  "eta_port_date",
+  "eta_destination_date",
+  "warehouse_name",
+  "has_eur1_certificate",
+  "batch_number",
+  "sent_for_testing_date",
+  "test_results",
+  "supplier_lab_results",
+  "taken_for_production",
+  "payment_due_date",
+  "invoice_number",
+  "payment_date",
+  "delivery_date",
+  "is_important",
+  "notes",
+  "is_blocked",
+  "created_at",
+  "created_by",
+  "updated_at",
+  "updated_by",
+];
+
 describe("runMigrations", () => {
   it("records every migration version in schema_migrations", () => {
     const applied = db.prepare("SELECT version FROM schema_migrations ORDER BY version").all() as {
@@ -27,6 +62,16 @@ describe("runMigrations", () => {
     expect(columns).toContain("is_important");
     expect(columns).toContain("delivered_order_value");
     expect(columns).toContain("warehouse_name");
+    expect(columns).toContain("supplier_lab_results");
+  });
+
+  it("creates purchase_orders with the documented column order on a fresh database", () => {
+    const columns = (db.prepare("PRAGMA table_info(purchase_orders)").all() as { name: string }[]).map((c) => c.name);
+    expect(columns).toEqual(EXPECTED_PURCHASE_ORDERS_COLUMNS);
+  });
+
+  it("leaves foreign key enforcement on after running", () => {
+    expect(db.pragma("foreign_keys", { simple: true })).toBe(1);
   });
 });
 
@@ -102,6 +147,7 @@ describe("runMigrations against a pre-migration (legacy) database", () => {
     expect(row.is_important).toBeNull();
     expect(row.delivered_order_value).toBeNull();
     expect(row.warehouse_name).toBeNull();
+    expect(row.supplier_lab_results).toBe(0);
 
     const applied = legacyDb.prepare("SELECT version FROM schema_migrations ORDER BY version").all() as {
       version: number;
@@ -133,11 +179,75 @@ describe("runMigrations against a pre-migration (legacy) database", () => {
       legacyDb
         .prepare(
           `INSERT INTO purchase_orders
-            (product_name, supplier_name, quantity_kg, port_price_per_kg, order_value, currency_code, created_by, is_important, delivered_order_value, warehouse_name)
-           VALUES ('Test', 'Test', 10, 1, 10, 'EUR', 'tester', 1, 500, 'Magazyn A')`,
+            (product_name, supplier_name, quantity_kg, port_price_per_kg, order_value, currency_code, created_by, is_important, delivered_order_value, warehouse_name, supplier_lab_results)
+           VALUES ('Test', 'Test', 10, 1, 10, 'EUR', 'tester', 1, 500, 'Magazyn A', 1)`,
         )
         .run(),
     ).not.toThrow();
+
+    expect(() =>
+      legacyDb
+        .prepare(
+          `INSERT INTO purchase_orders
+            (product_name, supplier_name, quantity_kg, port_price_per_kg, order_value, currency_code, created_by, supplier_lab_results)
+           VALUES ('Test', 'Test', 10, 1, 10, 'EUR', 'tester', 2)`,
+        )
+        .run(),
+    ).toThrow(/CHECK constraint failed/);
+
+    legacyDb.close();
+  });
+
+  // Migrations 1–3 append their columns at the end of a legacy table; migration 4 rebuilds it
+  // into the documented order. The rebuild drops and recreates purchase_orders, so this also
+  // guards against the DROP cascading into purchase_order_history (ON DELETE CASCADE) or
+  // silently losing the indexes defined on the old table.
+  it("rebuilds purchase_orders into the documented column order, keeping data, history and indexes", () => {
+    const legacyDb = createLegacyDb();
+    legacyDb.pragma("foreign_keys = ON");
+    legacyDb.exec(`
+      UPDATE purchase_orders SET is_blocked = 1, notes = 'stara uwaga';
+      CREATE INDEX idx_purchase_orders_batch_number ON purchase_orders(batch_number);
+      CREATE TABLE purchase_order_history (
+        id INTEGER PRIMARY KEY,
+        order_id INTEGER NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
+        edited_by TEXT NOT NULL,
+        edited_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        changes TEXT NOT NULL
+      );
+      INSERT INTO purchase_order_history (order_id, edited_by, changes) VALUES (1, 'legacy-user', '[]');
+    `);
+
+    runMigrations(legacyDb);
+
+    const columns = (legacyDb.prepare("PRAGMA table_info(purchase_orders)").all() as { name: string }[]).map(
+      (c) => c.name,
+    );
+    expect(columns).toEqual(EXPECTED_PURCHASE_ORDERS_COLUMNS);
+
+    const row = legacyDb.prepare("SELECT * FROM purchase_orders WHERE id = 1").get() as Record<string, unknown>;
+    expect(row.order_number).toBe("AB12345678");
+    expect(row.is_blocked).toBe(1);
+    expect(row.notes).toBe("stara uwaga");
+
+    const historyCount = (legacyDb.prepare("SELECT COUNT(*) AS c FROM purchase_order_history").get() as { c: number })
+      .c;
+    expect(historyCount).toBe(1);
+    expect(legacyDb.pragma("foreign_keys", { simple: true })).toBe(1);
+    expect(legacyDb.pragma("foreign_key_check")).toEqual([]);
+
+    const indexes = (
+      legacyDb
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'purchase_orders'")
+        .all() as {
+        name: string;
+      }[]
+    ).map((i) => i.name);
+    expect(indexes).toContain("idx_purchase_orders_batch_number");
+
+    // FK from history must still resolve to the rebuilt table and cascade on delete.
+    legacyDb.prepare("DELETE FROM purchase_orders WHERE id = 1").run();
+    expect((legacyDb.prepare("SELECT COUNT(*) AS c FROM purchase_order_history").get() as { c: number }).c).toBe(0);
 
     legacyDb.close();
   });

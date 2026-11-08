@@ -149,7 +149,7 @@ export interface OrderInput {
   batchNumber: string | null;
   sentForTestingDate: string | null;
   testResults: string | null;
-  isBlocked: 0 | 1 | null;
+  supplierLabResults: 0 | 1 | null;
   takenForProduction: 0 | 1 | null;
   paymentDueDate: string | null;
   invoiceNumber: string | null;
@@ -157,6 +157,7 @@ export interface OrderInput {
   deliveryDate: string | null;
   isImportant: 0 | 1 | null;
   notes: string | null;
+  isBlocked: 0 | 1 | null;
 }
 
 export interface NewOrderInput extends OrderInput {
@@ -196,13 +197,13 @@ export function createOrder(input: NewOrderInput): void {
       (order_number, product_name, supplier_name, quantity_kg, port_price_per_kg, order_value,
        delivered_order_value, currency_code, container_number, eta_port_date, eta_destination_date,
        warehouse_name, has_eur1_certificate, delivered_price_per_kg, batch_number, sent_for_testing_date,
-       test_results, is_blocked, taken_for_production, payment_due_date, invoice_number, payment_date,
-       delivery_date, is_important, notes, created_by)
+       test_results, supplier_lab_results, taken_for_production, payment_due_date, invoice_number,
+       payment_date, delivery_date, is_important, notes, is_blocked, created_by)
      VALUES (@orderNumber, @productName, @supplierName, @quantityKg, @portPricePerKg, @orderValue,
        @deliveredOrderValue, @currencyCode, @containerNumber, @etaPortDate, @etaDestinationDate,
        @warehouseName, @hasEur1Certificate, @deliveredPricePerKg, @batchNumber, @sentForTestingDate,
-       @testResults, @isBlocked, @takenForProduction, @paymentDueDate, @invoiceNumber, @paymentDate,
-       @deliveryDate, @isImportant, @notes, @createdBy)`,
+       @testResults, @supplierLabResults, @takenForProduction, @paymentDueDate, @invoiceNumber,
+       @paymentDate, @deliveryDate, @isImportant, @notes, @isBlocked, @createdBy)`,
   );
 
   const insertAll = db.transaction((order: NewOrderInput) => {
@@ -240,7 +241,7 @@ const HISTORY_FIELDS: { column: keyof PurchaseOrderRow; label: string; format: H
   { column: "batch_number", label: "Numer partii", format: "text" },
   { column: "sent_for_testing_date", label: "Data wysłania do badań", format: "date" },
   { column: "test_results", label: "Wynik badań", format: "text" },
-  { column: "is_blocked", label: "Zablokowane", format: "bool" },
+  { column: "supplier_lab_results", label: "Badania laboratoryjne od dostawcy", format: "bool" },
   { column: "taken_for_production", label: "Pobrane do produkcji", format: "bool" },
   { column: "payment_due_date", label: "Termin płatności", format: "date" },
   { column: "invoice_number", label: "Numer faktury", format: "text" },
@@ -248,6 +249,7 @@ const HISTORY_FIELDS: { column: keyof PurchaseOrderRow; label: string; format: H
   { column: "delivery_date", label: "Data dostawy", format: "date" },
   { column: "is_important", label: "Ważne", format: "bool" },
   { column: "notes", label: "Uwagi", format: "text" },
+  { column: "is_blocked", label: "Zablokowane", format: "bool" },
 ];
 
 function formatHistoryValue(value: PurchaseOrderRow[keyof PurchaseOrderRow], format: HistoryFormat): string {
@@ -306,7 +308,7 @@ export function updateOrder(id: number, input: UpdateOrderInput): void {
        batch_number = @batchNumber,
        sent_for_testing_date = @sentForTestingDate,
        test_results = @testResults,
-       is_blocked = @isBlocked,
+       supplier_lab_results = @supplierLabResults,
        taken_for_production = @takenForProduction,
        payment_due_date = @paymentDueDate,
        invoice_number = @invoiceNumber,
@@ -314,6 +316,7 @@ export function updateOrder(id: number, input: UpdateOrderInput): void {
        delivery_date = @deliveryDate,
        is_important = @isImportant,
        notes = @notes,
+       is_blocked = @isBlocked,
        updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
        updated_by = @updatedBy
      WHERE id = @id`,

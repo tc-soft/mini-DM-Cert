@@ -40,7 +40,7 @@ const initialValues = {
   batchNumber: order.batch_number ?? "",
   sentForTestingDate: order.sent_for_testing_date ?? "",
   testResults: order.test_results ?? "",
-  isBlocked: order.is_blocked === 1,
+  supplierLabResults: order.supplier_lab_results === 1,
   takenForProduction: order.taken_for_production === 1,
   paymentDueDate: order.payment_due_date ?? "",
   invoiceNumber: order.invoice_number ?? "",
@@ -48,6 +48,7 @@ const initialValues = {
   deliveryDate: order.delivery_date ?? "",
   isImportant: order.is_important === 1,
   notes: order.notes ?? "",
+  isBlocked: order.is_blocked === 1,
 };
 ---
 

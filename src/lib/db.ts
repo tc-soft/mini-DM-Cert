@@ -54,7 +54,7 @@ export interface PurchaseOrderRow {
   batch_number: string | null;
   sent_for_testing_date: string | null;
   test_results: string | null;
-  is_blocked: 0 | 1 | null;
+  supplier_lab_results: 0 | 1 | null;
   taken_for_production: 0 | 1 | null;
   payment_due_date: string | null;
   invoice_number: string | null;
@@ -62,6 +62,7 @@ export interface PurchaseOrderRow {
   delivery_date: string | null;
   is_important: 0 | 1 | null;
   notes: string | null;
+  is_blocked: 0 | 1 | null;
   created_at: string;
   created_by: string;
   updated_at: string | null;
@@ -209,10 +210,10 @@ db.exec(`
         OR length(test_results) <= 50
       ),
 
-    is_blocked INTEGER
+    supplier_lab_results INTEGER
       CHECK (
-        is_blocked IS NULL
-        OR is_blocked IN (0, 1)
+        supplier_lab_results IS NULL
+        OR supplier_lab_results IN (0, 1)
       ),
 
     taken_for_production INTEGER
@@ -242,6 +243,12 @@ db.exec(`
       CHECK (
         notes IS NULL
         OR length(notes) <= 512
+      ),
+
+    is_blocked INTEGER
+      CHECK (
+        is_blocked IS NULL
+        OR is_blocked IN (0, 1)
       ),
 
     created_at TEXT NOT NULL

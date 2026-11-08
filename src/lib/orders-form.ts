@@ -32,7 +32,7 @@ export function parseOrderForm(form: FormData, context: OrderFormContext): Order
   const batchNumber = optionalField(form, "batch_number");
   const sentForTestingDate = optionalField(form, "sent_for_testing_date");
   const testResults = optionalField(form, "test_results");
-  const isBlocked = form.get("is_blocked") ? 1 : 0;
+  const supplierLabResults = form.get("supplier_lab_results") ? 1 : 0;
   const takenForProduction = form.get("taken_for_production") ? 1 : 0;
   const paymentDueDate = optionalField(form, "payment_due_date");
   const invoiceNumber = optionalField(form, "invoice_number");
@@ -40,6 +40,7 @@ export function parseOrderForm(form: FormData, context: OrderFormContext): Order
   const deliveryDate = optionalField(form, "delivery_date");
   const isImportant = form.get("is_important") ? 1 : 0;
   const notes = optionalField(form, "notes");
+  const isBlocked = form.get("is_blocked") ? 1 : 0;
 
   if (orderNumber && orderNumber.length !== 10) {
     return { ok: false, error: "Numer zamówienia musi mieć dokładnie 10 znaków." };
@@ -119,7 +120,7 @@ export function parseOrderForm(form: FormData, context: OrderFormContext): Order
       batchNumber,
       sentForTestingDate,
       testResults,
-      isBlocked,
+      supplierLabResults,
       takenForProduction,
       paymentDueDate,
       invoiceNumber,
@@ -127,6 +128,7 @@ export function parseOrderForm(form: FormData, context: OrderFormContext): Order
       deliveryDate,
       isImportant,
       notes,
+      isBlocked,
     },
   };
 }
