@@ -4,7 +4,8 @@ import AppNav from "@/components/AppNav.astro";
 import { listOrders, listOrderFilterOptions } from "@/lib/orders";
 import { formatMoney } from "@/lib/money";
 import { queryParam } from "@/lib/http";
-import { TriangleAlert, PackagePlus, FlaskConical } from "lucide-react";
+import AttentionIcon from "@/components/orders/AttentionIcon.astro";
+import { PackagePlus, FlaskConical } from "lucide-react";
 
 // Query params are the only place these live — nothing is persisted server-side, so filtering
 // never changes the default view another user sees (FR-005).
@@ -280,9 +281,7 @@ if (!user) {
                       />
                     </td>
                     <td class="px-4 py-3">
-                      {o.needs_attention === 1 && (
-                        <TriangleAlert className="size-4 text-amber-300" aria-label="Wymaga uwagi" />
-                      )}
+                      <AttentionIcon order={o} />
                     </td>
                     <td class="px-4 py-3">{o.order_number ?? "—"}</td>
                     <td class="px-4 py-3">{o.product_name}</td>

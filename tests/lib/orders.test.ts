@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import {
+  attentionReasons,
   createOrder,
   deleteOrder,
   getDashboardStats,
@@ -225,6 +226,27 @@ describe("needs_attention derivation (FR-012 / Business Logic)", () => {
   it("does not flag a delivered order once lab test results are recorded", () => {
     createOrder(baseInput({ etaDestinationDate: daysFromNow(10), deliveryDate: daysFromNow(-1), testResults: "OK" }));
     expect(listOrders()[0].needs_attention).toBe(0);
+  });
+
+  it("explains why an order is flagged, one reason per matching rule", () => {
+    createOrder(baseInput({ isImportant: 1, etaDestinationDate: daysFromNow(2) }));
+    expect(attentionReasons(listOrders()[0])).toEqual([
+      "Oznaczone ręcznie jako ważne",
+      "ETA cel w ciągu 3 dni lub minęła, brak daty dostawy",
+    ]);
+  });
+
+  // The reported confusion: unchecking "Ważne" on a delivered order without lab results keeps it
+  // flagged — the reason must name the automatic rule, not the (now cleared) manual one.
+  it("keeps an automatic reason after the manual flag is cleared", () => {
+    createOrder(baseInput({ isImportant: 1, deliveryDate: daysFromNow(-1) }));
+    const [order] = listOrders();
+    updateOrder(order.id, { ...baseInput({ isImportant: 0, deliveryDate: daysFromNow(-1) }), updatedBy: "editor" });
+
+    const [updated] = listOrders();
+    expect(updated.needs_attention).toBe(1);
+    expect(attentionReasons(updated)).toEqual(["Dostawa zakończona, brak wyniku badań"]);
+    expect(listOrdersForReport({ dateFrom: null, dateTo: null })[0].attention_no_test_results).toBe(1);
   });
 });
 

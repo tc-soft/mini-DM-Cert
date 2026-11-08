@@ -1,0 +1,19 @@
+---
+import { TriangleAlert } from "lucide-react";
+import { attentionReasons, type PurchaseOrderWithFlag } from "@/lib/orders";
+
+interface Props {
+  order: PurchaseOrderWithFlag;
+}
+
+const { order } = Astro.props;
+const label = `Wymaga uwagi: ${attentionReasons(order).join("; ")}`;
+---
+
+{
+  order.needs_attention === 1 && (
+    <span title={label} class="inline-flex cursor-help">
+      <TriangleAlert className="size-4 text-amber-300" aria-label={label} />
+    </span>
+  )
+}

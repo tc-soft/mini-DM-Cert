@@ -4,7 +4,7 @@ import AppNav from "@/components/AppNav.astro";
 import { listOrdersForReport, sumOrderValueByCurrency } from "@/lib/orders";
 import { formatMoney } from "@/lib/money";
 import { queryParam } from "@/lib/http";
-import { TriangleAlert } from "lucide-react";
+import AttentionIcon from "@/components/orders/AttentionIcon.astro";
 
 const { user } = Astro.locals;
 if (!user) {
@@ -175,9 +175,7 @@ const totals = sumOrderValueByCurrency(filters);
                       />
                     </td>
                     <td class="px-4 py-3">
-                      {o.needs_attention === 1 && (
-                        <TriangleAlert className="size-4 text-amber-300" aria-label="Wymaga uwagi" />
-                      )}
+                      <AttentionIcon order={o} />
                     </td>
                     <td class="px-4 py-3">{o.order_number ?? "—"}</td>
                     <td class="px-4 py-3">{o.supplier_name}</td>

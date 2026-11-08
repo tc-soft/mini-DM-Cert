@@ -29,12 +29,18 @@ export function listCurrencies(): CurrencyRow[] {
 // delivery hasn't been confirmed yet, or the delivery is done but lab results are still missing,
 // or a user manually flagged it as important (PRD Business Logic / FR-012).
 const ATTENTION_DAYS_AHEAD = 3;
-const NEEDS_ATTENTION_SQL = `(
-  is_important = 1
-  OR (eta_destination_date IS NOT NULL AND delivery_date IS NULL
-      AND eta_destination_date <= date('now', '+${ATTENTION_DAYS_AHEAD} days'))
-  OR (delivery_date IS NOT NULL AND test_results IS NULL)
-)`;
+const ATTENTION_MANUAL_SQL = `(COALESCE(is_important, 0) = 1)`;
+const ATTENTION_ETA_SQL = `(eta_destination_date IS NOT NULL AND delivery_date IS NULL
+  AND eta_destination_date <= date('now', '+${String(ATTENTION_DAYS_AHEAD)} days'))`;
+const ATTENTION_NO_TEST_RESULTS_SQL = `(delivery_date IS NOT NULL AND test_results IS NULL)`;
+const NEEDS_ATTENTION_SQL = `(${ATTENTION_MANUAL_SQL} OR ${ATTENTION_ETA_SQL} OR ${ATTENTION_NO_TEST_RESULTS_SQL})`;
+
+// Each rule is also selected on its own so the UI can tell the user *why* a row is flagged —
+// otherwise unchecking "Ważne" on an order that still matches an automatic rule looks like a bug.
+const ATTENTION_COLUMNS_SQL = `${NEEDS_ATTENTION_SQL} AS needs_attention,
+  ${ATTENTION_MANUAL_SQL} AS attention_manual,
+  ${ATTENTION_ETA_SQL} AS attention_eta,
+  ${ATTENTION_NO_TEST_RESULTS_SQL} AS attention_no_test_results`;
 
 const OVERDUE_PAYMENT_SQL = `(
   payment_due_date IS NOT NULL AND payment_due_date < date('now') AND payment_date IS NULL
@@ -46,7 +52,22 @@ const IN_PROGRESS_SQL = `(is_blocked = 0 AND delivery_date IS NULL)`;
 // NULL counts as missing too — only an explicit "Tak" means the supplier sent lab results.
 const MISSING_SUPPLIER_LAB_SQL = `(COALESCE(supplier_lab_results, 0) = 0)`;
 
-export type PurchaseOrderWithFlag = PurchaseOrderRow & { needs_attention: 0 | 1 };
+export type PurchaseOrderWithFlag = PurchaseOrderRow & {
+  needs_attention: 0 | 1;
+  attention_manual: 0 | 1;
+  attention_eta: 0 | 1;
+  attention_no_test_results: 0 | 1;
+};
+
+export function attentionReasons(order: PurchaseOrderWithFlag): string[] {
+  const reasons: string[] = [];
+  if (order.attention_manual === 1) reasons.push("Oznaczone ręcznie jako ważne");
+  if (order.attention_eta === 1) {
+    reasons.push(`ETA cel w ciągu ${String(ATTENTION_DAYS_AHEAD)} dni lub minęła, brak daty dostawy`);
+  }
+  if (order.attention_no_test_results === 1) reasons.push("Dostawa zakończona, brak wyniku badań");
+  return reasons;
+}
 
 export interface OrderFilters {
   q: string | null;
@@ -83,7 +104,7 @@ export function listOrders(filters: Partial<OrderFilters> = {}): PurchaseOrderWi
 
   return db
     .prepare(
-      `SELECT *, ${NEEDS_ATTENTION_SQL} AS needs_attention FROM purchase_orders
+      `SELECT *, ${ATTENTION_COLUMNS_SQL} FROM purchase_orders
        WHERE (@q IS NULL OR
          order_number LIKE '%' || @q || '%' OR
          product_name LIKE '%' || @q || '%' OR
@@ -374,7 +395,7 @@ export interface ReportFilters {
 export function listOrdersForReport(filters: ReportFilters): PurchaseOrderWithFlag[] {
   return db
     .prepare(
-      `SELECT *, ${NEEDS_ATTENTION_SQL} AS needs_attention FROM purchase_orders
+      `SELECT *, ${ATTENTION_COLUMNS_SQL} FROM purchase_orders
        WHERE (@dateFrom IS NULL OR eta_destination_date >= @dateFrom)
          AND (@dateTo IS NULL OR eta_destination_date <= @dateTo)
        ORDER BY eta_destination_date ASC, created_at ASC`,
