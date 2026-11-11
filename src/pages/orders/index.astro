@@ -229,7 +229,7 @@ if (!user) {
               <th class="px-4 py-3 font-medium">Towar</th>
               <th class="px-4 py-3 font-medium">Dostawca</th>
               <th class="px-4 py-3 text-right font-medium">Ilość (kg)</th>
-              <th class="px-4 py-3 text-right font-medium">Wartość</th>
+              <th class="px-4 py-3 text-right font-medium">Cena za kg</th>
               <th class="px-4 py-3 font-medium">Kontener</th>
               <th class="px-4 py-3 font-medium">ETA port</th>
               <th class="px-4 py-3 font-medium">ETA cel</th>
@@ -290,7 +290,7 @@ if (!user) {
                       {o.quantity_kg.toLocaleString("pl-PL", { useGrouping: "always" })}
                     </td>
                     <td class="px-4 py-3 text-right">
-                      {formatMoney(o.order_value)} {o.currency_code}
+                      {formatMoney(o.port_price_per_kg)} {o.currency_code}
                     </td>
                     <td class="px-4 py-3">{o.container_number ?? "—"}</td>
                     <td class="px-4 py-3 whitespace-nowrap">{o.eta_port_date ?? "—"}</td>
