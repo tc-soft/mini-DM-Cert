@@ -237,7 +237,7 @@ if (!user) {
                 <FlaskConical className="size-4" aria-hidden="true" />
                 <span class="sr-only">Badania laboratoryjne od dostawcy</span>
               </th>
-              <th class="px-4 py-3 font-medium">Dodał</th>
+              <th class="px-4 py-3 font-medium">Magazyn</th>
               <th class="px-4 py-3 font-medium">Akcje</th>
             </tr>
           </thead>
@@ -302,7 +302,7 @@ if (!user) {
                         </span>
                       )}
                     </td>
-                    <td class="px-4 py-3 text-blue-100/70">{o.created_by}</td>
+                    <td class="px-4 py-3">{o.warehouse_name ?? "—"}</td>
                     <td class="px-4 py-3">
                       <div class="flex items-center gap-3">
                         <a href={`/orders/${o.id}/edit`} class="text-blue-200 hover:text-white">

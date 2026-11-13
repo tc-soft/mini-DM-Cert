@@ -72,9 +72,9 @@ describe("parseOrderForm", () => {
     expect(result.ok).toBe(false);
   });
 
-  it("rejects an over-length warehouse name", () => {
-    const result = parseOrderForm(formWith({ warehouse_name: "x".repeat(101) }), context);
-    expect(result.ok).toBe(false);
+  it("accepts a 50-character warehouse name and rejects 51", () => {
+    expect(parseOrderForm(formWith({ warehouse_name: "x".repeat(50) }), context).ok).toBe(true);
+    expect(parseOrderForm(formWith({ warehouse_name: "x".repeat(51) }), context).ok).toBe(false);
   });
 
   it("computes delivered_order_value only when a delivered price is provided", () => {

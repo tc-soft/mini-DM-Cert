@@ -26,13 +26,16 @@ function hasColumnsInOrder(current: string[], snapshot: string[]): boolean {
 // rebuilding purchase_orders: create new → copy → drop old → rename → recreate indexes.
 // Requires foreign_keys OFF (handled by runMigrations), or the DROP would cascade-delete
 // purchase_order_history. `afterCopy` gets the pre-rebuild column list, to backfill new columns.
+// `isUpToDate` overrides the default no-op check (column order) — needed when a rebuild only
+// changes a constraint, which the column list can't reveal.
 function rebuildPurchaseOrders(
   db: Database.Database,
   snapshot: { columns: string[]; createSql: string; tempTable: string },
   afterCopy?: (previousColumns: string[]) => void,
+  isUpToDate: (current: string[]) => boolean = (current) => hasColumnsInOrder(current, snapshot.columns),
 ): void {
   const current = columnNames(db, "purchase_orders");
-  if (hasColumnsInOrder(current, snapshot.columns)) return;
+  if (isUpToDate(current)) return;
 
   const indexes = db
     .prepare("SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'purchase_orders' AND sql IS NOT NULL")
@@ -165,6 +168,31 @@ const PURCHASE_ORDERS_V5_SQL = `
   );
 `;
 
+// Migration 6 keeps the v5 column set and only tightens warehouse_name to 1–50 characters.
+// Derived from the frozen V5 SQL (not from db.ts), so it stays fixed as well.
+const PURCHASE_ORDERS_V6_SQL = PURCHASE_ORDERS_V5_SQL.replace("purchase_orders_v5", "purchase_orders_v6").replace(
+  "length(trim(warehouse_name)) BETWEEN 1 AND 100",
+  "length(trim(warehouse_name)) BETWEEN 1 AND 50",
+);
+
+const WAREHOUSE_NAME_MAX = 50;
+
+// Normalized CREATE TABLE text (whitespace collapsed), or null when the table doesn't exist.
+function tableSql(db: Database.Database, table: string): string | null {
+  const row = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?").get(table) as
+    | { sql: string }
+    | undefined;
+  return row ? row.sql.replace(/\s+/g, " ") : null;
+}
+
+// Shortens over-long values instead of failing the migration (client decision 2026-11-13):
+// trimmed, cut to the limit, then right-trimmed again so the cut can't leave trailing spaces.
+// Applied identically to orders and the dictionary, so a shortened order value still matches
+// its shortened dictionary entry.
+function truncateSql(column: string, max: number): string {
+  return `rtrim(substr(trim(${column}), 1, ${String(max)}))`;
+}
+
 // Each entry patches an EXISTING table's shape (SQLite has no "ADD COLUMN IF NOT EXISTS",
 // so every `up` must guard itself). Brand-new tables/indexes don't need an entry here —
 // `CREATE TABLE/INDEX IF NOT EXISTS` in db.ts already handles those idempotently for both
@@ -241,6 +269,46 @@ export const migrations: Migration[] = [
       });
     },
   },
+  {
+    // Client request: warehouse name ("Magazyn") max 50 characters instead of 100 — both on
+    // orders and in the warehouses dictionary. SQLite can't alter a CHECK, so both tables are
+    // rebuilt. Longer existing values are shortened first (see truncateSql); shortening may make
+    // two dictionary names equal, so the dictionary copy uses INSERT OR IGNORE (UNIQUE(name)).
+    version: 6,
+    name: "limit warehouse_name and warehouses.name to 50 characters",
+    up: (db) => {
+      const limit = `length(trim(warehouse_name)) BETWEEN 1 AND ${String(WAREHOUSE_NAME_MAX)}`;
+      if (!tableSql(db, "purchase_orders")?.includes(limit)) {
+        db.exec(
+          `UPDATE purchase_orders SET warehouse_name = ${truncateSql("warehouse_name", WAREHOUSE_NAME_MAX)}
+           WHERE length(trim(warehouse_name)) > ${String(WAREHOUSE_NAME_MAX)}`,
+        );
+        rebuildPurchaseOrders(
+          db,
+          { columns: PURCHASE_ORDERS_V5_COLUMNS, createSql: PURCHASE_ORDERS_V6_SQL, tempTable: "purchase_orders_v6" },
+          undefined,
+          () => false,
+        );
+      }
+
+      const warehousesSql = tableSql(db, "warehouses");
+      if (warehousesSql && !warehousesSql.includes(`length(trim(name)) BETWEEN 1 AND ${String(WAREHOUSE_NAME_MAX)}`)) {
+        db.exec(`
+          CREATE TABLE warehouses_v6 (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND ${String(WAREHOUSE_NAME_MAX)}),
+            UNIQUE (name)
+          );
+          INSERT OR IGNORE INTO warehouses_v6 (id, name)
+            SELECT id, CASE WHEN length(trim(name)) > ${String(WAREHOUSE_NAME_MAX)}
+                            THEN ${truncateSql("name", WAREHOUSE_NAME_MAX)} ELSE name END
+            FROM warehouses ORDER BY id;
+          DROP TABLE warehouses;
+          ALTER TABLE warehouses_v6 RENAME TO warehouses;
+        `);
+      }
+    },
+  },
 ];
 
 // Runs once at startup (see db.ts). On a fresh database the base schema already has the
@@ -262,7 +330,7 @@ export function runMigrations(db: Database.Database): void {
   const pending = migrations.filter((m) => !applied.has(m.version)).sort((a, b) => a.version - b.version);
   if (pending.length === 0) return;
 
-  // Table rebuilds (migrations 4 and 5) must run with foreign keys off — otherwise DROP TABLE on
+  // Table rebuilds (migrations 4–6) must run with foreign keys off — otherwise DROP TABLE on
   // purchase_orders cascades into purchase_order_history. The pragma is a no-op inside a
   // transaction, so it's toggled out here; integrity is re-checked before each commit instead.
   const foreignKeysWereOn = db.pragma("foreign_keys", { simple: true }) === 1;

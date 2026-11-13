@@ -52,8 +52,8 @@ export function parseOrderForm(form: FormData, context: OrderFormContext): Order
   if (!supplierName || supplierName.length > 100) {
     return { ok: false, error: "Podaj nazwę dostawcy (maks. 100 znaków)." };
   }
-  if (!warehouseName || warehouseName.length > 100) {
-    return { ok: false, error: "Podaj magazyn (maks. 100 znaków)." };
+  if (!warehouseName || warehouseName.length > 50) {
+    return { ok: false, error: "Podaj magazyn (maks. 50 znaków)." };
   }
 
   const quantityKg = Number(quantityRaw);

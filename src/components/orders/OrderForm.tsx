@@ -409,7 +409,7 @@ export default function OrderForm({
             onChange={(e) => {
               set("warehouseName", e.target.value);
             }}
-            maxLength={100}
+            maxLength={50}
             className={cn(inputClass, errors.warehouseName && "border-red-400/60 focus:ring-red-400")}
           />
           <datalist id="warehouse-options">

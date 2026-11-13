@@ -334,3 +334,135 @@ describe("runMigrations from the migration-4 schema (adds shipping_line)", () =>
     v4Db.close();
   });
 });
+
+// Database as deployed after migration 5 (v0.11 schema, warehouse names up to 100 characters):
+// migration 6 tightens warehouse_name and warehouses.name to 50, shortening longer values.
+describe("runMigrations from the migration-5 schema (warehouse name max 50)", () => {
+  const long = "Magazyn " + "x".repeat(60); // 68 characters
+  const shortened = long.slice(0, 50);
+
+  function createV5Db() {
+    const v5Db = new Database(":memory:");
+    v5Db.pragma("foreign_keys = ON");
+    v5Db.exec(`
+      CREATE TABLE schema_migrations (
+        version INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+      );
+      INSERT INTO schema_migrations (version, name) VALUES (1, 'm1'), (2, 'm2'), (3, 'm3'), (4, 'm4'), (5, 'm5');
+      CREATE TABLE warehouses (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND 100),
+        UNIQUE (name)
+      );
+      CREATE TABLE purchase_orders (
+        id INTEGER PRIMARY KEY,
+        order_number TEXT, product_name TEXT NOT NULL, supplier_name TEXT NOT NULL,
+        quantity_kg INTEGER NOT NULL, port_price_per_kg INTEGER NOT NULL, delivered_price_per_kg INTEGER,
+        order_value INTEGER NOT NULL, delivered_order_value INTEGER, currency_code TEXT NOT NULL,
+        container_number TEXT, eta_port_date TEXT, eta_destination_date TEXT,
+        warehouse_name TEXT CHECK (warehouse_name IS NULL OR length(trim(warehouse_name)) BETWEEN 1 AND 100),
+        shipping_line TEXT,
+        has_eur1_certificate INTEGER, batch_number TEXT, sent_for_testing_date TEXT, test_results TEXT,
+        supplier_lab_results INTEGER, taken_for_production INTEGER, payment_due_date TEXT, invoice_number TEXT,
+        payment_date TEXT, delivery_date TEXT, is_important INTEGER, notes TEXT, is_blocked INTEGER,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        created_by TEXT NOT NULL, updated_at TEXT, updated_by TEXT
+      );
+      CREATE INDEX idx_purchase_orders_warehouse_name ON purchase_orders(warehouse_name);
+      CREATE TABLE purchase_order_history (
+        id INTEGER PRIMARY KEY,
+        order_id INTEGER NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
+        edited_by TEXT NOT NULL,
+        edited_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        changes TEXT NOT NULL
+      );
+    `);
+    const insertOrder = v5Db.prepare(
+      `INSERT INTO purchase_orders
+        (product_name, supplier_name, quantity_kg, port_price_per_kg, order_value, currency_code,
+         warehouse_name, shipping_line, created_by)
+        VALUES ('Kakao', 'Dostawca SA', 1000, 250, 250000, 'EUR', ?, 'Maersk', 'v5-user')`,
+    );
+    insertOrder.run("Magazyn A");
+    insertOrder.run(long);
+    insertOrder.run(null);
+    v5Db.exec("INSERT INTO purchase_order_history (order_id, edited_by, changes) VALUES (2, 'v5-user', '[]')");
+    // Two names that become identical after shortening to 50 characters.
+    const insertWarehouse = v5Db.prepare("INSERT INTO warehouses (name) VALUES (?)");
+    insertWarehouse.run("Magazyn A");
+    insertWarehouse.run(long);
+    insertWarehouse.run(long + " bis");
+    return v5Db;
+  }
+
+  it("shortens longer names, keeps data, history and indexes, and enforces 50 characters", () => {
+    const v5Db = createV5Db();
+
+    runMigrations(v5Db);
+
+    const columns = (v5Db.prepare("PRAGMA table_info(purchase_orders)").all() as { name: string }[]).map((c) => c.name);
+    expect(columns).toEqual(EXPECTED_PURCHASE_ORDERS_COLUMNS);
+
+    const names = (
+      v5Db.prepare("SELECT warehouse_name FROM purchase_orders ORDER BY id").all() as {
+        warehouse_name: string | null;
+      }[]
+    ).map((r) => r.warehouse_name);
+    expect(names).toEqual(["Magazyn A", shortened, null]);
+    expect(
+      (v5Db.prepare("SELECT shipping_line FROM purchase_orders WHERE id = 2").get() as { shipping_line: string })
+        .shipping_line,
+    ).toBe("Maersk");
+
+    const dictionary = (v5Db.prepare("SELECT name FROM warehouses ORDER BY id").all() as { name: string }[]).map(
+      (r) => r.name,
+    );
+    expect(dictionary).toEqual(["Magazyn A", shortened]);
+
+    expect((v5Db.prepare("SELECT COUNT(*) AS c FROM purchase_order_history").get() as { c: number }).c).toBe(1);
+    expect(v5Db.pragma("foreign_key_check")).toEqual([]);
+    expect(v5Db.pragma("foreign_keys", { simple: true })).toBe(1);
+    const indexes = (
+      v5Db.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'purchase_orders'").all() as {
+        name: string;
+      }[]
+    ).map((i) => i.name);
+    expect(indexes).toContain("idx_purchase_orders_warehouse_name");
+
+    expect(() =>
+      v5Db
+        .prepare(
+          `INSERT INTO purchase_orders
+            (product_name, supplier_name, quantity_kg, port_price_per_kg, order_value, currency_code, created_by, warehouse_name)
+           VALUES ('Test', 'Test', 10, 1, 10, 'EUR', 'tester', ?)`,
+        )
+        .run("x".repeat(51)),
+    ).toThrow(/CHECK constraint failed/);
+    expect(() => v5Db.prepare("INSERT INTO warehouses (name) VALUES (?)").run("x".repeat(51))).toThrow(
+      /CHECK constraint failed/,
+    );
+
+    const applied = v5Db.prepare("SELECT version FROM schema_migrations ORDER BY version").all() as {
+      version: number;
+    }[];
+    expect(applied.map((r) => r.version)).toEqual(migrations.map((m) => m.version));
+
+    v5Db.close();
+  });
+});
+
+describe("fresh database (db.ts schema)", () => {
+  it("rejects a warehouse_name longer than 50 characters", () => {
+    expect(() =>
+      db
+        .prepare(
+          `INSERT INTO purchase_orders
+            (product_name, supplier_name, quantity_kg, port_price_per_kg, order_value, currency_code, created_by, warehouse_name)
+           VALUES ('Test', 'Test', 10, 1, 10, 'EUR', 'tester', ?)`,
+        )
+        .run("x".repeat(51)),
+    ).toThrow(/CHECK constraint failed/);
+  });
+});

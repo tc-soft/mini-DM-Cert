@@ -120,7 +120,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS warehouses (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL
-      CHECK (length(trim(name)) BETWEEN 1 AND 100),
+      CHECK (length(trim(name)) BETWEEN 1 AND 50),
     UNIQUE (name)
   );
 
@@ -188,7 +188,7 @@ db.exec(`
     warehouse_name TEXT
       CHECK (
         warehouse_name IS NULL
-        OR length(trim(warehouse_name)) BETWEEN 1 AND 100
+        OR length(trim(warehouse_name)) BETWEEN 1 AND 50
       ),
 
     shipping_line TEXT

@@ -4,6 +4,7 @@ import {
   createDictionaryEntry,
   deleteDictionaryEntry,
   dictionaryLabel,
+  dictionaryMaxLength,
   dictionaryPagePath,
   dictionaryRequiresAdmin,
   isDictionaryKind,
@@ -89,6 +90,15 @@ describe("warehouses dictionary", () => {
 
     deleteDictionaryEntry("warehouses", entries[0].id);
     expect(listDictionaryEntries("warehouses")).toHaveLength(0);
+  });
+
+  it("limits names to 50 characters (app check and DB CHECK)", () => {
+    expect(dictionaryMaxLength("warehouses")).toBe(50);
+    expect(createDictionaryEntry("warehouses", "x".repeat(50)).ok).toBe(true);
+    expect(createDictionaryEntry("warehouses", "y".repeat(51)).ok).toBe(false);
+    expect(() => db.prepare("INSERT INTO warehouses (name) VALUES (?)").run("z".repeat(51))).toThrow(
+      /CHECK constraint failed/,
+    );
   });
 });
 

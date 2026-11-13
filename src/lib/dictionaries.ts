@@ -14,6 +14,8 @@ interface DictionaryConfig {
   // Towary/Dostawcy live on the "Słowniki" page (any logged-in user); Magazyny/Waluty
   // live on the admin-only "Ustawienia" page — see dictionaryPagePath below.
   adminOnly: boolean;
+  // Mirrors the CHECK constraint on the table (used for the input maxLength on the page).
+  maxLength: number;
   normalize: (raw: string) => string;
   validate: (value: string) => string | null;
 }
@@ -26,6 +28,7 @@ const DICTIONARIES: Record<DictionaryKind, DictionaryConfig> = {
     column: "name",
     label: "Towary",
     adminOnly: false,
+    maxLength: 100,
     normalize: (raw) => raw.trim(),
     validate: (value) => (value.length < 1 || value.length > 100 ? "Nazwa towaru musi mieć od 1 do 100 znaków." : null),
   },
@@ -34,6 +37,7 @@ const DICTIONARIES: Record<DictionaryKind, DictionaryConfig> = {
     column: "name",
     label: "Dostawcy",
     adminOnly: false,
+    maxLength: 100,
     normalize: (raw) => raw.trim(),
     validate: (value) =>
       value.length < 1 || value.length > 100 ? "Nazwa dostawcy musi mieć od 1 do 100 znaków." : null,
@@ -43,15 +47,16 @@ const DICTIONARIES: Record<DictionaryKind, DictionaryConfig> = {
     column: "name",
     label: "Magazyny",
     adminOnly: true,
+    maxLength: 50,
     normalize: (raw) => raw.trim(),
-    validate: (value) =>
-      value.length < 1 || value.length > 100 ? "Nazwa magazynu musi mieć od 1 do 100 znaków." : null,
+    validate: (value) => (value.length < 1 || value.length > 50 ? "Nazwa magazynu musi mieć od 1 do 50 znaków." : null),
   },
   currencies: {
     table: "currencies",
     column: "code",
     label: "Waluty",
     adminOnly: true,
+    maxLength: 3,
     normalize: (raw) => raw.trim().toUpperCase(),
     validate: (value) => (!/^[A-Z]{3}$/.test(value) ? "Kod waluty musi składać się z dokładnie 3 liter." : null),
   },
@@ -63,6 +68,10 @@ export function isDictionaryKind(value: string): value is DictionaryKind {
 
 export function dictionaryLabel(kind: DictionaryKind): string {
   return DICTIONARIES[kind].label;
+}
+
+export function dictionaryMaxLength(kind: DictionaryKind): number {
+  return DICTIONARIES[kind].maxLength;
 }
 
 export function dictionaryRequiresAdmin(kind: DictionaryKind): boolean {
