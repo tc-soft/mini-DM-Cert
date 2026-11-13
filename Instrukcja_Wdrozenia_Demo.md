@@ -2,7 +2,7 @@
 
 |                            |                                                                                    |
 | -------------------------- | ---------------------------------------------------------------------------------- |
-| Wersja aplikacji           | commit `fb87c13` (gałąź `main`)                                                    |
+| Wersja aplikacji           | commit `a743b3c` (gałąź `main`)                                                    |
 | Poprzednio wdrożona wersja | commit `69b80f5` (wdrożenie z 2026-11-08)                                          |
 | Data przygotowania         | 2026-11-13                                                                         |
 | Środowisko                 | serwer demo klienta (`<ADRES_DEMO>`), Docker + docker compose, reverse proxy nginx |
@@ -22,8 +22,15 @@ Zmiany względem `69b80f5`:
 
 1. **Nowe pole „Armator”** (przewoźnik morski), tekst do 50 znaków, niewymagane. Jest tylko na formularzu **edycji** zamówienia, obok pola „Magazyn”. Formularz dodawania zamówienia się nie zmienia. Zmiana armatora trafia do historii zmian zamówienia.
 2. **Lista zamówień: kolumna „Cena za kg” zamiast „Wartość”.** Pokazuje cenę portową za kilogram z walutą zamówienia. Wartość zamówienia nadal jest w formularzu edycji, a raport nadal sumuje wartości zamówień.
+3. **Lista zamówień: kolumna „Magazyn” zamiast „Dodał”.** Zamówienia bez magazynu pokazują „—”.
+4. **Nazwa magazynu: maksymalnie 50 znaków** (wcześniej 100), zarówno w zamówieniu, jak i w słowniku „Magazyny” (strona „Ustawienia”).
 
-**To wdrożenie zmienia strukturę bazy.** Zawiera **migrację nr 5, która przebudowuje tabelę `purchase_orders`**: nowa kolumna `shipping_line` staje między `warehouse_name` a `has_eur1_certificate`. Istniejące zamówienia dostają puste pole „Armator”, a pozostałe dane, historia zmian i indeksy zostają zachowane. **Kopia zapasowa bazy (krok 4) jest obowiązkowa.**
+**To wdrożenie zmienia strukturę bazy.** Zawiera dwie migracje, wykonywane po kolei przy starcie aplikacji:
+
+- **migracja nr 5 przebudowuje tabelę `purchase_orders`**: nowa kolumna `shipping_line` staje między `warehouse_name` a `has_eur1_certificate`. Istniejące zamówienia dostają puste pole „Armator”.
+- **migracja nr 6 przebudowuje tabele `purchase_orders` i `warehouses`** z limitem 50 znaków dla nazwy magazynu. Nazwy dłuższe niż 50 znaków są **skracane** do 50 (tak samo w zamówieniach i w słowniku). Jeśli po skróceniu dwie pozycje słownika byłyby identyczne, zostaje jedna. Krok 4.4 pokazuje, czy na serwerze są takie nazwy.
+
+Pozostałe dane, historia zmian i indeksy zostają zachowane. **Kopia zapasowa bazy (krok 4) jest obowiązkowa.**
 
 Nie zmieniają się zmienne środowiskowe, port (4321) ani konfiguracja `docker-compose.yml` i nginx.
 
@@ -32,7 +39,7 @@ Nie zmieniają się zmienne środowiskowe, port (4321) ani konfiguracja `docker-
 > - pole „Badania laboratoryjne od dostawcy”,
 > - przeniesione pole „Zablokowane”,
 > - poszerzony layout,
-> - **migrację nr 4, która również przebudowuje tabelę `purchase_orders`** (wykona się przed migracją nr 5).
+> - **migrację nr 4, która również przebudowuje tabelę `purchase_orders`** (wykona się przed migracjami nr 5 i 6).
 >
 > Różnice w oczekiwanych wynikach opisują uwagi „_starsza wersja_” w krokach 4.4, 8 i 9.
 
@@ -56,16 +63,16 @@ Instrukcja zakłada, że usługa `mini-dm` w `docker-compose.yml` korzysta z obr
 Na komputerze deweloperskim, w katalogu projektu:
 
 ```bash
-git archive --format=zip -o mini-dm-fb87c13.zip fb87c13
+git archive --format=zip -o mini-dm-a743b3c.zip a743b3c
 ```
 
 `git archive` pakuje tylko pliki śledzone przez git. W paczce nie ma więc `node_modules`, `dist`, `.astro`, `data`, `.env*` ani lokalnych konfiguracji.
 
-Skopiuj `mini-dm-fb87c13.zip` na serwer przez WinSCP, logując się jako `<UZYTKOWNIK>`, do katalogu domowego (`~`). Następnie wyczyść `<KATALOG_ZRODEL>` ze starych plików źródłowych i rozpakuj tam paczkę:
+Skopiuj `mini-dm-a743b3c.zip` na serwer przez WinSCP, logując się jako `<UZYTKOWNIK>`, do katalogu domowego (`~`). Następnie wyczyść `<KATALOG_ZRODEL>` ze starych plików źródłowych i rozpakuj tam paczkę:
 
 ```bash
 cd <KATALOG_ZRODEL>
-unzip -o ~/mini-dm-fb87c13.zip
+unzip -o ~/mini-dm-a743b3c.zip
 ```
 
 > Nigdy nie rozpakowuj paczki do `<KATALOG_DANYCH>` i nie czyść tego katalogu.
@@ -102,14 +109,18 @@ const db = require("better-sqlite3")("/app/data/mini-dm.db", { readonly: true, f
 console.log("zamowienia:", db.prepare("SELECT COUNT(*) AS c FROM purchase_orders").get().c);
 console.log("historia:  ", db.prepare("SELECT COUNT(*) AS c FROM purchase_order_history").get().c);
 console.log("migracje:  ", db.prepare("SELECT version FROM schema_migrations ORDER BY version").all().map(r => r.version).join(","));
+console.log("magazyny >50:", db.prepare("SELECT COUNT(*) AS c FROM purchase_orders WHERE length(trim(warehouse_name)) > 50").get().c,
+  "/ slownik:", db.prepare("SELECT COUNT(*) AS c FROM warehouses WHERE length(trim(name)) > 50").get().c);
 '
 ```
 
 Zapisz liczby `zamowienia` i `historia`. Pole `migracje` powinno pokazać `1,2,3,4`.
 
+Pole `magazyny >50` pokazuje, ile zamówień i pozycji słownika ma nazwę magazynu dłuższą niż 50 znaków. Jeśli obie liczby to `0`, migracja nr 6 nie zmieni żadnych danych. Jeśli nie, te nazwy zostaną skrócone do 50 znaków. Możesz je wcześniej poprawić ręcznie w starej wersji (wtedy uruchom ją ponownie: `docker compose up -d mini-dm`, popraw nazwy i wróć do kroku 4.2).
+
 _Starsza wersja:_ jeśli `migracje` pokazuje `1,2,3`, serwer ma wersję sprzed migracji nr 4 (zob. uwagę w punkcie 1).
 
-Jeśli `migracje` pokazuje już `1,2,3,4,5`, nowa wersja była już wdrożona. Wdrożenie możesz powtórzyć, migracja nr 5 nie wykona się drugi raz.
+Jeśli `migracje` pokazuje już `1,2,3,4,5,6`, nowa wersja była już wdrożona. Wdrożenie możesz powtórzyć, migracje nie wykonają się drugi raz. Jeśli pokazuje `1,2,3,4,5`, wykona się tylko migracja nr 6.
 
 ## 5. Budowa nowego obrazu
 
@@ -146,7 +157,7 @@ docker compose logs --tail 50 mini-dm
 
 W logach **nie** powinno być błędów typu `Migration ...`, `SQLITE_...` ani `foreign key violation`. Migracje nie wypisują komunikatu o sukcesie, więc brak błędów i działający serwer oznaczają, że start się udał.
 
-Migracja nr 5 działa w jednej transakcji. Jeśli się nie powiedzie, baza zostaje bez zmian, a kontener nie wystartuje (w logach będzie błąd). Przejdź wtedy do kroku 9.
+Każda migracja działa w osobnej transakcji. Jeśli któraś się nie powiedzie, jej zmiany są wycofane, a kontener nie wystartuje (w logach będzie błąd). Przejdź wtedy do kroku 9.
 
 ## 8. Weryfikacja
 
@@ -160,6 +171,7 @@ console.log("historia:  ", db.prepare("SELECT COUNT(*) AS c FROM purchase_order_
 console.log("migracje:  ", db.prepare("SELECT version FROM schema_migrations ORDER BY version").all().map(r => r.version).join(","));
 const cols = db.prepare("PRAGMA table_info(purchase_orders)").all().map(c => c.name);
 console.log("kolumny:   ", cols.slice(cols.indexOf("warehouse_name"), cols.indexOf("warehouse_name") + 3).join(", "));
+console.log("limit 50:  ", ["purchase_orders", "warehouses"].map(t => t + "=" + db.prepare("SELECT sql FROM sqlite_master WHERE name = ?").get(t).sql.includes("BETWEEN 1 AND 50")).join(", "));
 console.log("integralnosc:", db.pragma("integrity_check", { simple: true }), "/ FK:", db.pragma("foreign_key_check").length);
 '
 ```
@@ -167,20 +179,22 @@ console.log("integralnosc:", db.pragma("integrity_check", { simple: true }), "/ 
 Oczekiwany wynik:
 
 - `zamowienia` i `historia` mają **te same liczby** co w kroku 4.4,
-- `migracje` pokazuje `1,2,3,4,5`,
+- `migracje` pokazuje `1,2,3,4,5,6`,
 - `kolumny` pokazuje `warehouse_name, shipping_line, has_eur1_certificate`,
+- `limit 50` pokazuje `purchase_orders=true, warehouses=true`,
 - `integralnosc` pokazuje `ok / FK: 0`.
 
-_Starsza wersja:_ `migracje` zmienia się z `1,2,3` na `1,2,3,4,5`, a liczby zamówień i historii pozostają te same.
+_Starsza wersja:_ `migracje` zmienia się z `1,2,3` na `1,2,3,4,5,6`, a liczby zamówień i historii pozostają te same.
 
 **8.2. Aplikacja w przeglądarce** (`https://<ADRES_DEMO>`):
 
 1. Zaloguj się. Kafelki na **Dashboardzie** pokazują te same liczby co przed wdrożeniem.
-2. Na liście **Zamówień** zamiast kolumny „Wartość” jest kolumna „Cena za kg”, z ceną portową i walutą.
+2. Na liście **Zamówień** zamiast kolumny „Wartość” jest kolumna „Cena za kg”, z ceną portową i walutą, a zamiast kolumny „Dodał” — kolumna „Magazyn”.
 3. Otwórz **Nowe zamówienie** (bez zapisywania). Formularz wygląda tak jak przed wdrożeniem i **nie ma** pola „Armator”.
 4. **Test zapisu (obowiązkowy):** otwórz edycję dowolnego zamówienia. Obok pola „Magazyn” jest puste pole „Armator” z licznikiem `0/50`. Wpisz np. `TEST` i zapisz.
 5. Ponownie otwórz edycję tego zamówienia. Pole „Armator” pokazuje `TEST`, a w historii zmian jest wpis „Armator: — → TEST”.
 6. Jeśli to nie jest zamówienie testowe, wyczyść pole „Armator” i zapisz, żeby przywrócić poprzedni stan. W historii pojawi się wpis „Armator: TEST → —”.
+7. W polu „Magazyn” (formularz edycji) i w słowniku „Magazyny” na stronie **Ustawienia** nie da się wpisać więcej niż 50 znaków.
 
 Wdrożenie jest zakończone dopiero po udanym teście zapisu (punkty 4–5), a nie po samym wyświetleniu strony.
 
@@ -188,7 +202,7 @@ Wdrożenie jest zakończone dopiero po udanym teście zapisu (punkty 4–5), a n
 
 Wykonaj te kroki tylko wtedy, gdy krok 7 lub 8 się nie powiedzie.
 
-Zwykle wystarczy **powrót do poprzedniego obrazu**, a dane wprowadzone w międzyczasie zostają zachowane. Poprzednia wersja (`69b80f5`) działa poprawnie na bazie po migracji nr 5: nie zna kolumny `shipping_line`, więc ją pomija. Wpisane wartości „Armator” zostają w bazie i znów będą widoczne po ponownym wdrożeniu nowej wersji.
+Zwykle wystarczy **powrót do poprzedniego obrazu**, a dane wprowadzone w międzyczasie zostają zachowane. Poprzednia wersja (`69b80f5`) działa poprawnie na bazie po migracjach nr 5 i 6: nie zna kolumny `shipping_line`, więc ją pomija, a nieznanych sobie migracji nie wykonuje. Wpisane wartości „Armator” zostają w bazie i znów będą widoczne po ponownym wdrożeniu nowej wersji. Jedyna różnica: w starej wersji próba zapisania nazwy magazynu dłuższej niż 50 znaków zakończy się błędem zapisu, bo baza ma już nowy limit. Nazwy skrócone przez migrację nr 6 zostają skrócone.
 
 ```bash
 cd <KATALOG_COMPOSE>
@@ -218,4 +232,4 @@ Po rollbacku powtórz sprawdzenie z kroku 4.4 na obrazie `mini-dm:latest`. Liczb
 ## 10. Po udanym wdrożeniu
 
 - Zostaw kopię z kroku 4.3 i obraz `mini-dm:prev` przez kilka dni. Gdy klient potwierdzi, że wszystko działa, możesz usunąć obraz poleceniem `docker image rm mini-dm:prev`.
-- Usuń paczkę `mini-dm-fb87c13.zip` z serwera.
+- Usuń paczkę `mini-dm-a743b3c.zip` z serwera.
