@@ -83,6 +83,19 @@ describe("parseOrderForm", () => {
     if (result.ok) expect(result.data.deliveredOrderValue).toBe(1000 * 20000);
   });
 
+  it("treats a missing or blank shipping_line as optional (null)", () => {
+    const missing = parseOrderForm(formWith({}), context);
+    const blank = parseOrderForm(formWith({ shipping_line: "   " }), context);
+    expect(missing.ok && missing.data.shippingLine).toBeNull();
+    expect(blank.ok && blank.data.shippingLine).toBeNull();
+  });
+
+  it("accepts a shipping_line of up to 50 characters and rejects a longer one", () => {
+    const ok = parseOrderForm(formWith({ shipping_line: "x".repeat(50) }), context);
+    expect(ok.ok && ok.data.shippingLine).toBe("x".repeat(50));
+    expect(parseOrderForm(formWith({ shipping_line: "x".repeat(51) }), context).ok).toBe(false);
+  });
+
   it("rejects a batch_number that isn't exactly 13 characters", () => {
     const result = parseOrderForm(formWith({ batch_number: "tooshort" }), context);
     expect(result.ok).toBe(false);

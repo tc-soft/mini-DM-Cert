@@ -35,6 +35,7 @@ const initialValues = {
   etaPortDate: order.eta_port_date ?? "",
   etaDestinationDate: order.eta_destination_date ?? "",
   warehouseName: order.warehouse_name ?? "",
+  shippingLine: order.shipping_line ?? "",
   hasEur1Certificate: order.has_eur1_certificate === 1,
   deliveredPricePerKg: order.delivered_price_per_kg === null ? "" : moneyToInputValue(order.delivered_price_per_kg),
   batchNumber: order.batch_number ?? "",

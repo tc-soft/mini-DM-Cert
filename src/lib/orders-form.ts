@@ -27,6 +27,7 @@ export function parseOrderForm(form: FormData, context: OrderFormContext): Order
   const etaPortDate = optionalField(form, "eta_port_date");
   const etaDestinationDate = optionalField(form, "eta_destination_date");
   const warehouseName = field(form, "warehouse_name");
+  const shippingLine = optionalField(form, "shipping_line");
   const hasEur1Certificate = form.get("has_eur1_certificate") ? 1 : 0;
   const deliveredPriceRaw = optionalField(form, "delivered_price_per_kg");
   const batchNumber = optionalField(form, "batch_number");
@@ -74,6 +75,9 @@ export function parseOrderForm(form: FormData, context: OrderFormContext): Order
   if (containerNumber && containerNumber.length > 50) {
     return { ok: false, error: "Numer kontenera może mieć maksymalnie 50 znaków." };
   }
+  if (shippingLine && shippingLine.length > 50) {
+    return { ok: false, error: "Armator może mieć maksymalnie 50 znaków." };
+  }
 
   let deliveredPricePerKg: number | null = null;
   if (deliveredPriceRaw) {
@@ -115,6 +119,7 @@ export function parseOrderForm(form: FormData, context: OrderFormContext): Order
       etaPortDate,
       etaDestinationDate,
       warehouseName,
+      shippingLine,
       hasEur1Certificate,
       deliveredPricePerKg,
       batchNumber,

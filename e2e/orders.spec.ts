@@ -20,6 +20,8 @@ test.describe("orders", () => {
     await page.locator("#port_price_per_kg").fill("2.5");
     await page.locator("#currency_code").selectOption("EUR");
     await page.locator("#warehouse_name").fill("E2E Magazyn");
+    // "Armator" is edit-only — the create form stays unchanged.
+    await expect(page.locator("#shipping_line")).toHaveCount(0);
     await page.getByRole("button", { name: "Zapisz zamówienie" }).click();
 
     await expect(page).toHaveURL(/\/orders$/);
@@ -38,6 +40,7 @@ test.describe("orders", () => {
     await expect(page).toHaveURL(/\/orders\/\d+\/edit/);
     await waitForHydration(page);
     await page.locator("#product_name").fill(changedProduct);
+    await page.locator("#shipping_line").fill("E2E Armator");
     await page.getByRole("button", { name: "Zapisz zmiany" }).click();
 
     // FR-010: the edit is recorded in the order's change history.
@@ -45,5 +48,7 @@ test.describe("orders", () => {
     await page.locator("tbody tr", { hasText: changedProduct }).getByRole("link", { name: "Edytuj" }).click();
     await expect(page.getByText("Historia zmian")).toBeVisible();
     await expect(page.getByText("Towar:")).toBeVisible();
+    await expect(page.getByText("Armator:")).toBeVisible();
+    await expect(page.locator("#shipping_line")).toHaveValue("E2E Armator");
   });
 });

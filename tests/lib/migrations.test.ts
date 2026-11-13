@@ -19,6 +19,7 @@ const EXPECTED_PURCHASE_ORDERS_COLUMNS = [
   "eta_port_date",
   "eta_destination_date",
   "warehouse_name",
+  "shipping_line",
   "has_eur1_certificate",
   "batch_number",
   "sent_for_testing_date",
@@ -63,6 +64,7 @@ describe("runMigrations", () => {
     expect(columns).toContain("delivered_order_value");
     expect(columns).toContain("warehouse_name");
     expect(columns).toContain("supplier_lab_results");
+    expect(columns).toContain("shipping_line");
   });
 
   it("creates purchase_orders with the documented column order on a fresh database", () => {
@@ -148,6 +150,7 @@ describe("runMigrations against a pre-migration (legacy) database", () => {
     expect(row.delivered_order_value).toBeNull();
     expect(row.warehouse_name).toBeNull();
     expect(row.supplier_lab_results).toBe(0);
+    expect(row.shipping_line).toBeNull();
 
     const applied = legacyDb.prepare("SELECT version FROM schema_migrations ORDER BY version").all() as {
       version: number;
@@ -179,8 +182,8 @@ describe("runMigrations against a pre-migration (legacy) database", () => {
       legacyDb
         .prepare(
           `INSERT INTO purchase_orders
-            (product_name, supplier_name, quantity_kg, port_price_per_kg, order_value, currency_code, created_by, is_important, delivered_order_value, warehouse_name, supplier_lab_results)
-           VALUES ('Test', 'Test', 10, 1, 10, 'EUR', 'tester', 1, 500, 'Magazyn A', 1)`,
+            (product_name, supplier_name, quantity_kg, port_price_per_kg, order_value, currency_code, created_by, is_important, delivered_order_value, warehouse_name, supplier_lab_results, shipping_line)
+           VALUES ('Test', 'Test', 10, 1, 10, 'EUR', 'tester', 1, 500, 'Magazyn A', 1, 'Maersk')`,
         )
         .run(),
     ).not.toThrow();
@@ -193,6 +196,16 @@ describe("runMigrations against a pre-migration (legacy) database", () => {
            VALUES ('Test', 'Test', 10, 1, 10, 'EUR', 'tester', 2)`,
         )
         .run(),
+    ).toThrow(/CHECK constraint failed/);
+
+    expect(() =>
+      legacyDb
+        .prepare(
+          `INSERT INTO purchase_orders
+            (product_name, supplier_name, quantity_kg, port_price_per_kg, order_value, currency_code, created_by, shipping_line)
+           VALUES ('Test', 'Test', 10, 1, 10, 'EUR', 'tester', ?)`,
+        )
+        .run("x".repeat(51)),
     ).toThrow(/CHECK constraint failed/);
 
     legacyDb.close();
@@ -250,5 +263,74 @@ describe("runMigrations against a pre-migration (legacy) database", () => {
     expect((legacyDb.prepare("SELECT COUNT(*) AS c FROM purchase_order_history").get() as { c: number }).c).toBe(0);
 
     legacyDb.close();
+  });
+});
+
+// Database as deployed after migration 4 (v0.10 schema, no shipping_line): migration 5 must
+// insert shipping_line right after warehouse_name, keeping data, history and indexes.
+describe("runMigrations from the migration-4 schema (adds shipping_line)", () => {
+  it("rebuilds purchase_orders with shipping_line after warehouse_name", () => {
+    const v4Db = new Database(":memory:");
+    v4Db.pragma("foreign_keys = ON");
+    v4Db.exec(`
+      CREATE TABLE schema_migrations (
+        version INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+      );
+      INSERT INTO schema_migrations (version, name) VALUES (1, 'm1'), (2, 'm2'), (3, 'm3'), (4, 'm4');
+      CREATE TABLE purchase_orders (
+        id INTEGER PRIMARY KEY,
+        order_number TEXT, product_name TEXT NOT NULL, supplier_name TEXT NOT NULL,
+        quantity_kg INTEGER NOT NULL, port_price_per_kg INTEGER NOT NULL, delivered_price_per_kg INTEGER,
+        order_value INTEGER NOT NULL, delivered_order_value INTEGER, currency_code TEXT NOT NULL,
+        container_number TEXT, eta_port_date TEXT, eta_destination_date TEXT, warehouse_name TEXT,
+        has_eur1_certificate INTEGER, batch_number TEXT, sent_for_testing_date TEXT, test_results TEXT,
+        supplier_lab_results INTEGER, taken_for_production INTEGER, payment_due_date TEXT, invoice_number TEXT,
+        payment_date TEXT, delivery_date TEXT, is_important INTEGER, notes TEXT, is_blocked INTEGER,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        created_by TEXT NOT NULL, updated_at TEXT, updated_by TEXT
+      );
+      CREATE INDEX idx_purchase_orders_warehouse_name ON purchase_orders(warehouse_name);
+      CREATE TABLE purchase_order_history (
+        id INTEGER PRIMARY KEY,
+        order_id INTEGER NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
+        edited_by TEXT NOT NULL,
+        edited_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        changes TEXT NOT NULL
+      );
+      INSERT INTO purchase_orders
+        (product_name, supplier_name, quantity_kg, port_price_per_kg, order_value, currency_code,
+         warehouse_name, supplier_lab_results, created_by)
+        VALUES ('Kakao', 'Dostawca SA', 1000, 250, 250000, 'EUR', 'Magazyn A', 1, 'v4-user');
+      INSERT INTO purchase_order_history (order_id, edited_by, changes) VALUES (1, 'v4-user', '[]');
+    `);
+
+    runMigrations(v4Db);
+
+    const columns = (v4Db.prepare("PRAGMA table_info(purchase_orders)").all() as { name: string }[]).map((c) => c.name);
+    expect(columns).toEqual(EXPECTED_PURCHASE_ORDERS_COLUMNS);
+
+    const row = v4Db.prepare("SELECT * FROM purchase_orders WHERE id = 1").get() as Record<string, unknown>;
+    expect(row.warehouse_name).toBe("Magazyn A");
+    expect(row.supplier_lab_results).toBe(1);
+    expect(row.shipping_line).toBeNull();
+
+    expect((v4Db.prepare("SELECT COUNT(*) AS c FROM purchase_order_history").get() as { c: number }).c).toBe(1);
+    expect(v4Db.pragma("foreign_key_check")).toEqual([]);
+    expect(v4Db.pragma("foreign_keys", { simple: true })).toBe(1);
+    const indexes = (
+      v4Db.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'purchase_orders'").all() as {
+        name: string;
+      }[]
+    ).map((i) => i.name);
+    expect(indexes).toContain("idx_purchase_orders_warehouse_name");
+
+    const applied = v4Db.prepare("SELECT version FROM schema_migrations ORDER BY version").all() as {
+      version: number;
+    }[];
+    expect(applied.map((r) => r.version)).toEqual(migrations.map((m) => m.version));
+
+    v4Db.close();
   });
 });

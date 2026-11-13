@@ -14,6 +14,41 @@ function hasColumn(db: Database.Database, table: string, column: string): boolea
   return columnNames(db, table).includes(column);
 }
 
+// True when `current` contains every column of `snapshot`, in the snapshot's order. Columns
+// unknown to the snapshot (added by LATER migrations) are ignored, so a historical rebuild stays
+// a no-op on a database that is already past it — e.g. a fresh one created from the latest
+// db.ts schema — instead of rebuilding it back into an older shape and dropping newer columns.
+function hasColumnsInOrder(current: string[], snapshot: string[]): boolean {
+  return current.filter((c) => snapshot.includes(c)).join(",") === snapshot.join(",");
+}
+
+// SQLite can only append columns, so placing a new column mid-table (or reordering) means
+// rebuilding purchase_orders: create new → copy → drop old → rename → recreate indexes.
+// Requires foreign_keys OFF (handled by runMigrations), or the DROP would cascade-delete
+// purchase_order_history. `afterCopy` gets the pre-rebuild column list, to backfill new columns.
+function rebuildPurchaseOrders(
+  db: Database.Database,
+  snapshot: { columns: string[]; createSql: string; tempTable: string },
+  afterCopy?: (previousColumns: string[]) => void,
+): void {
+  const current = columnNames(db, "purchase_orders");
+  if (hasColumnsInOrder(current, snapshot.columns)) return;
+
+  const indexes = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'purchase_orders' AND sql IS NOT NULL")
+    .all() as { sql: string }[];
+
+  db.exec(snapshot.createSql);
+  const copied = snapshot.columns.filter((c) => current.includes(c)).join(", ");
+  db.exec(`INSERT INTO ${snapshot.tempTable} (${copied}) SELECT ${copied} FROM purchase_orders`);
+  afterCopy?.(current);
+  db.exec("DROP TABLE purchase_orders");
+  db.exec(`ALTER TABLE ${snapshot.tempTable} RENAME TO purchase_orders`);
+  for (const { sql } of indexes) {
+    db.exec(sql);
+  }
+}
+
 // Frozen snapshot of purchase_orders as of migration 4 — deliberately NOT shared with db.ts,
 // so a later change to the base schema can't silently alter what this historical step does.
 const PURCHASE_ORDERS_V4_COLUMNS = [
@@ -86,6 +121,50 @@ const PURCHASE_ORDERS_V4_SQL = `
   );
 `;
 
+// Frozen snapshot of purchase_orders as of migration 5 (same rule as V4: never derived from db.ts).
+const PURCHASE_ORDERS_V5_COLUMNS = [
+  ...PURCHASE_ORDERS_V4_COLUMNS.slice(0, PURCHASE_ORDERS_V4_COLUMNS.indexOf("warehouse_name") + 1),
+  "shipping_line",
+  ...PURCHASE_ORDERS_V4_COLUMNS.slice(PURCHASE_ORDERS_V4_COLUMNS.indexOf("warehouse_name") + 1),
+];
+
+const PURCHASE_ORDERS_V5_SQL = `
+  CREATE TABLE purchase_orders_v5 (
+    id INTEGER PRIMARY KEY,
+    order_number TEXT CHECK (order_number IS NULL OR length(order_number) = 10),
+    product_name TEXT NOT NULL CHECK (length(trim(product_name)) BETWEEN 1 AND 100),
+    supplier_name TEXT NOT NULL CHECK (length(trim(supplier_name)) BETWEEN 1 AND 100),
+    quantity_kg INTEGER NOT NULL CHECK (quantity_kg > 0),
+    port_price_per_kg INTEGER NOT NULL CHECK (port_price_per_kg >= 0),
+    delivered_price_per_kg INTEGER CHECK (delivered_price_per_kg IS NULL OR delivered_price_per_kg >= 0),
+    order_value INTEGER NOT NULL CHECK (order_value >= 0),
+    delivered_order_value INTEGER CHECK (delivered_order_value IS NULL OR delivered_order_value >= 0),
+    currency_code TEXT NOT NULL CHECK (length(currency_code) = 3 AND currency_code = upper(currency_code)),
+    container_number TEXT CHECK (container_number IS NULL OR length(container_number) <= 50),
+    eta_port_date TEXT,
+    eta_destination_date TEXT,
+    warehouse_name TEXT CHECK (warehouse_name IS NULL OR length(trim(warehouse_name)) BETWEEN 1 AND 100),
+    shipping_line TEXT CHECK (shipping_line IS NULL OR length(shipping_line) <= 50),
+    has_eur1_certificate INTEGER CHECK (has_eur1_certificate IS NULL OR has_eur1_certificate IN (0, 1)),
+    batch_number TEXT CHECK (batch_number IS NULL OR length(batch_number) = 13),
+    sent_for_testing_date TEXT,
+    test_results TEXT CHECK (test_results IS NULL OR length(test_results) <= 50),
+    supplier_lab_results INTEGER CHECK (supplier_lab_results IS NULL OR supplier_lab_results IN (0, 1)),
+    taken_for_production INTEGER CHECK (taken_for_production IS NULL OR taken_for_production IN (0, 1)),
+    payment_due_date TEXT,
+    invoice_number TEXT CHECK (invoice_number IS NULL OR length(invoice_number) <= 30),
+    payment_date TEXT,
+    delivery_date TEXT,
+    is_important INTEGER CHECK (is_important IS NULL OR is_important IN (0, 1)),
+    notes TEXT CHECK (notes IS NULL OR length(notes) <= 512),
+    is_blocked INTEGER CHECK (is_blocked IS NULL OR is_blocked IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    created_by TEXT NOT NULL CHECK (length(trim(created_by)) > 0),
+    updated_at TEXT,
+    updated_by TEXT
+  );
+`;
+
 // Each entry patches an EXISTING table's shape (SQLite has no "ADD COLUMN IF NOT EXISTS",
 // so every `up` must guard itself). Brand-new tables/indexes don't need an entry here —
 // `CREATE TABLE/INDEX IF NOT EXISTS` in db.ts already handles those idempotently for both
@@ -130,33 +209,36 @@ export const migrations: Migration[] = [
     // places supplier_lab_results after test_results and moves is_blocked after notes. So the
     // table is rebuilt (create new → copy → drop old → rename), which as a side effect also
     // normalizes legacy databases where migrations 1–3 appended their columns at the end.
-    // Requires foreign_keys OFF (handled by runMigrations), or the DROP would cascade-delete
-    // purchase_order_history.
+    // See rebuildPurchaseOrders for the mechanics and the foreign_keys requirement.
     version: 4,
     name: "add purchase_orders.supplier_lab_results, move is_blocked after notes",
     up: (db) => {
-      const current = columnNames(db, "purchase_orders");
-      if (current.join(",") === PURCHASE_ORDERS_V4_COLUMNS.join(",")) return;
-
-      const indexes = db
-        .prepare(
-          "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'purchase_orders' AND sql IS NOT NULL",
-        )
-        .all() as { sql: string }[];
-
-      db.exec(PURCHASE_ORDERS_V4_SQL);
-      const copied = PURCHASE_ORDERS_V4_COLUMNS.filter((c) => current.includes(c)).join(", ");
-      db.exec(`INSERT INTO purchase_orders_v4 (${copied}) SELECT ${copied} FROM purchase_orders`);
-      // Existing orders get 0 (same as an unchecked box on a new order), not NULL — otherwise the
-      // first edit of every pre-existing order would log a spurious "— → Nie" history entry.
-      if (!current.includes("supplier_lab_results")) {
-        db.exec("UPDATE purchase_orders_v4 SET supplier_lab_results = 0");
-      }
-      db.exec("DROP TABLE purchase_orders");
-      db.exec("ALTER TABLE purchase_orders_v4 RENAME TO purchase_orders");
-      for (const { sql } of indexes) {
-        db.exec(sql);
-      }
+      rebuildPurchaseOrders(
+        db,
+        { columns: PURCHASE_ORDERS_V4_COLUMNS, createSql: PURCHASE_ORDERS_V4_SQL, tempTable: "purchase_orders_v4" },
+        (previousColumns) => {
+          // Existing orders get 0 (same as an unchecked box on a new order), not NULL — otherwise the
+          // first edit of every pre-existing order would log a spurious "— → Nie" history entry.
+          if (!previousColumns.includes("supplier_lab_results")) {
+            db.exec("UPDATE purchase_orders_v4 SET supplier_lab_results = 0");
+          }
+        },
+      );
+    },
+  },
+  {
+    // Client request: optional text "Armator" (max 50 chars) placed between warehouse_name and
+    // has_eur1_certificate (Lp. 15 in the schema doc). Mid-table placement → rebuild, as in 4.
+    // Existing rows keep shipping_line = NULL: an empty text field on the form is also saved as
+    // NULL, so unlike the checkbox in migration 4 no backfill is needed to avoid spurious history.
+    version: 5,
+    name: "add purchase_orders.shipping_line after warehouse_name",
+    up: (db) => {
+      rebuildPurchaseOrders(db, {
+        columns: PURCHASE_ORDERS_V5_COLUMNS,
+        createSql: PURCHASE_ORDERS_V5_SQL,
+        tempTable: "purchase_orders_v5",
+      });
     },
   },
 ];
@@ -180,7 +262,7 @@ export function runMigrations(db: Database.Database): void {
   const pending = migrations.filter((m) => !applied.has(m.version)).sort((a, b) => a.version - b.version);
   if (pending.length === 0) return;
 
-  // Table rebuilds (migration 4) must run with foreign keys off — otherwise DROP TABLE on
+  // Table rebuilds (migrations 4 and 5) must run with foreign keys off — otherwise DROP TABLE on
   // purchase_orders cascades into purchase_order_history. The pragma is a no-op inside a
   // transaction, so it's toggled out here; integrity is re-checked before each commit instead.
   const foreignKeysWereOn = db.pragma("foreign_keys", { simple: true }) === 1;

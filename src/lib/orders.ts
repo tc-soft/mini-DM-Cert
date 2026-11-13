@@ -172,6 +172,7 @@ export interface OrderInput {
   etaPortDate: string | null;
   etaDestinationDate: string | null;
   warehouseName: string | null;
+  shippingLine: string | null;
   hasEur1Certificate: 0 | 1 | null;
   deliveredPricePerKg: number | null;
   batchNumber: string | null;
@@ -224,12 +225,12 @@ export function createOrder(input: NewOrderInput): void {
     `INSERT INTO purchase_orders
       (order_number, product_name, supplier_name, quantity_kg, port_price_per_kg, order_value,
        delivered_order_value, currency_code, container_number, eta_port_date, eta_destination_date,
-       warehouse_name, has_eur1_certificate, delivered_price_per_kg, batch_number, sent_for_testing_date,
+       warehouse_name, shipping_line, has_eur1_certificate, delivered_price_per_kg, batch_number, sent_for_testing_date,
        test_results, supplier_lab_results, taken_for_production, payment_due_date, invoice_number,
        payment_date, delivery_date, is_important, notes, is_blocked, created_by)
      VALUES (@orderNumber, @productName, @supplierName, @quantityKg, @portPricePerKg, @orderValue,
        @deliveredOrderValue, @currencyCode, @containerNumber, @etaPortDate, @etaDestinationDate,
-       @warehouseName, @hasEur1Certificate, @deliveredPricePerKg, @batchNumber, @sentForTestingDate,
+       @warehouseName, @shippingLine, @hasEur1Certificate, @deliveredPricePerKg, @batchNumber, @sentForTestingDate,
        @testResults, @supplierLabResults, @takenForProduction, @paymentDueDate, @invoiceNumber,
        @paymentDate, @deliveryDate, @isImportant, @notes, @isBlocked, @createdBy)`,
   );
@@ -265,6 +266,7 @@ const HISTORY_FIELDS: { column: keyof PurchaseOrderRow; label: string; format: H
   { column: "eta_port_date", label: "ETA port", format: "date" },
   { column: "eta_destination_date", label: "ETA cel", format: "date" },
   { column: "warehouse_name", label: "Magazyn", format: "text" },
+  { column: "shipping_line", label: "Armator", format: "text" },
   { column: "has_eur1_certificate", label: "Certyfikat EUR.1", format: "bool" },
   { column: "batch_number", label: "Numer partii", format: "text" },
   { column: "sent_for_testing_date", label: "Data wysłania do badań", format: "date" },
@@ -331,6 +333,7 @@ export function updateOrder(id: number, input: UpdateOrderInput): void {
        eta_port_date = @etaPortDate,
        eta_destination_date = @etaDestinationDate,
        warehouse_name = @warehouseName,
+       shipping_line = @shippingLine,
        has_eur1_certificate = @hasEur1Certificate,
        delivered_price_per_kg = @deliveredPricePerKg,
        batch_number = @batchNumber,

@@ -27,6 +27,7 @@ interface FormState {
   etaPortDate: string;
   etaDestinationDate: string;
   warehouseName: string;
+  shippingLine: string;
   hasEur1Certificate: boolean;
   deliveredPricePerKg: string;
   batchNumber: string;
@@ -54,6 +55,7 @@ const initialState: FormState = {
   etaPortDate: "",
   etaDestinationDate: "",
   warehouseName: "",
+  shippingLine: "",
   hasEur1Certificate: false,
   deliveredPricePerKg: "",
   batchNumber: "",
@@ -416,6 +418,21 @@ export default function OrderForm({
             ))}
           </datalist>
         </Field>
+
+        {isEdit && (
+          <Field id="shipping_line" label="Armator" hint={`${form.shippingLine.length}/50`}>
+            <input
+              id="shipping_line"
+              name="shipping_line"
+              value={form.shippingLine}
+              onChange={(e) => {
+                set("shippingLine", e.target.value);
+              }}
+              maxLength={50}
+              className={inputClass}
+            />
+          </Field>
+        )}
       </div>
 
       <label htmlFor="has_eur1_certificate" className="flex items-center gap-2 text-sm text-blue-100/80">

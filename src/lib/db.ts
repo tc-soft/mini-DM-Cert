@@ -50,6 +50,7 @@ export interface PurchaseOrderRow {
   eta_port_date: string | null;
   eta_destination_date: string | null;
   warehouse_name: string | null;
+  shipping_line: string | null;
   has_eur1_certificate: 0 | 1 | null;
   batch_number: string | null;
   sent_for_testing_date: string | null;
@@ -188,6 +189,12 @@ db.exec(`
       CHECK (
         warehouse_name IS NULL
         OR length(trim(warehouse_name)) BETWEEN 1 AND 100
+      ),
+
+    shipping_line TEXT
+      CHECK (
+        shipping_line IS NULL
+        OR length(shipping_line) <= 50
       ),
 
     has_eur1_certificate INTEGER

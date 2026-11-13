@@ -47,6 +47,7 @@ function baseInput(overrides: Partial<NewOrderInput> = {}): NewOrderInput {
     etaPortDate: null,
     etaDestinationDate: null,
     warehouseName: "Magazyn Główny",
+    shippingLine: null,
     hasEur1Certificate: 0,
     deliveredPricePerKg: null,
     batchNumber: null,
@@ -141,6 +142,18 @@ describe("updateOrder change history (FR-010)", () => {
     expect(getOrderById(order.id)?.supplier_lab_results).toBe(1);
     const [entry] = getOrderHistory(order.id);
     expect(entry.changes).toEqual([{ label: "Badania laboratoryjne od dostawcy", oldValue: "Nie", newValue: "Tak" }]);
+  });
+
+  it("persists shipping_line (Armator) and records its change in history", () => {
+    createOrder(baseInput({}));
+    const [order] = listOrders();
+    expect(getOrderById(order.id)?.shipping_line).toBeNull();
+
+    updateOrder(order.id, { ...baseInput({ shippingLine: "Maersk" }), updatedBy: "editor" });
+
+    expect(getOrderById(order.id)?.shipping_line).toBe("Maersk");
+    const [entry] = getOrderHistory(order.id);
+    expect(entry.changes).toEqual([{ label: "Armator", oldValue: "—", newValue: "Maersk" }]);
   });
 
   it("records no history entry when nothing changed", () => {
